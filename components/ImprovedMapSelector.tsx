@@ -33,7 +33,7 @@ const MapUpdater: React.FC<{ lat: number, lon: number, onMapChange: (lat: number
 
   // Debounced click handler to prevent rapid updates
   const handleMapClick = useMemo(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
     return (e: L.LeafletMouseEvent) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
