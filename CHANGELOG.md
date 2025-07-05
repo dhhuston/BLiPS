@@ -86,7 +86,7 @@ This release is designed for educational and simulation purposes. Please refer t
 
 ---
 
-For more information about BLiPS, visit the [GitHub repository](https://github.com/yourusername/blips).
+For more information about BLiPS, visit the [GitHub repository](https://github.com/dhhuston/blips).
 
 ## [0.9.0] - 2024-12-19
 

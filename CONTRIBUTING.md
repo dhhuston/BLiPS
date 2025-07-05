@@ -38,7 +38,7 @@ When suggesting new features:
 
 1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/blips.git
+   git clone https://github.com/dhhuston/blips.git
    cd blips
    ```
 

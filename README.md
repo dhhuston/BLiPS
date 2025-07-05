@@ -43,7 +43,7 @@ BLiPS is a sophisticated balloon launch prediction and flight planning software 
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/blips.git
+   git clone https://github.com/dhhuston/blips.git
    cd blips
    ```
 
@@ -185,7 +185,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you encounter any issues or have questions:
 
-1. Check the [Issues](https://github.com/yourusername/blips/issues) page
+1. Check the [Issues](https://github.com/dhhuston/blips/issues) page
 2. Create a new issue with detailed information
 3. Include system information and error logs
 
@@ -214,9 +214,11 @@ BLiPS supports multiple methods for API key configuration:
 Create a file named `api.keys` in the project root with your API keys:
 
 ```
-APRS_FI_API_KEY=your_aprs_fi_api_key_here
-CESIUM_ION_ACCESS_TOKEN=your_cesium_ion_access_token_here
+APRS_FI_API_KEY=get_your_key_from_aprs.fi
+CESIUM_ION_ACCESS_TOKEN=get_your_token_from_cesium.com
 ```
+
+Replace the placeholder values with your actual API keys obtained from the respective services.
 
 **Important**: Do not commit `api.keys` to version control. This file is automatically ignored by git.
 

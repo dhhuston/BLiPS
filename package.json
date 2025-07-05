@@ -7,7 +7,7 @@
   "homepage": "https://yourusername.github.io/blips",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/blips.git"
+    "url": "https://github.com/dhhuston/blips.git"
   },
   "keywords": [
     "balloon",
@@ -23,7 +23,7 @@
   "author": "BLiPS Team",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yourusername/blips/issues"
+    "url": "https://github.com/dhhuston/blips/issues"
   },
   "scripts": {
     "dev": "vite",

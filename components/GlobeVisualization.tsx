@@ -39,7 +39,7 @@ const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
 
   useEffect(() => {
     if (cesiumContainer.current && !viewerRef.current && result) {
-      // Set your Cesium Ion access token in api.keys as CESIUM_ION_ACCESS_TOKEN=your_token_here
+      // Set your Cesium Ion access token in api.keys as CESIUM_ION_ACCESS_TOKEN=get_your_token_from_cesium.com
       Cesium.Ion.defaultAccessToken = cesiumToken;
       const viewer = new Cesium.Viewer(cesiumContainer.current, {
         baseLayerPicker: false,
