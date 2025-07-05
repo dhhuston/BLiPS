@@ -41,6 +41,11 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev
 
+      - name: Symlink javascriptcoregtk-4.0.pc to javascriptcoregtk-4.1.pc (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.0.pc /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.1.pc || true
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
