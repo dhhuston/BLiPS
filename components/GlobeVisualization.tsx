@@ -2,13 +2,17 @@ import React, { useRef, useEffect } from 'react';
 import { PredictionResult } from '../types';
 import { LaunchIcon, BurstIcon, LandingIcon, svgToDataURL } from './icons/IconComponents';
 import * as Cesium from 'cesium';
-import 'cesium/Build/Cesium/Widgets/widgets.css';
 
 interface GlobeVisualizationProps {
   result: PredictionResult | null;
 }
 
 const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
+  // Always call hooks at the top level
+  const cesiumContainer = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<Cesium.Viewer | null>(null);
+  
+  // Early return after hooks
   if (!result) {
     return (
       <div className="h-full flex items-center justify-center text-gray-400">
@@ -21,31 +25,20 @@ const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
     );
   }
 
-  const cesiumContainer = useRef<HTMLDivElement>(null);
-  const viewerRef = useRef<any | null>(null);
   const { path, launchPoint, burstPoint, landingPoint } = result;
 
-  // Load Cesium Ion access token from localStorage (for Tauri), window/global, or api.keys (for local dev)
+  // Load Cesium Ion access token from localStorage (for Tauri) or window/global
   let cesiumToken = '';
   try {
     if (typeof window !== 'undefined') {
       cesiumToken = localStorage.getItem('cesiumIonAccessToken') || (window as any).CESIUM_ION_ACCESS_TOKEN || '';
-    } else {
-      const fs = require('fs');
-      if (fs.existsSync('./api.keys')) {
-        const lines = fs.readFileSync('./api.keys', 'utf-8').split('\n');
-        for (const line of lines) {
-          const [key, value] = line.split('=');
-          if (key && value && key.trim() === 'CESIUM_ION_ACCESS_TOKEN') {
-            cesiumToken = value.trim();
-          }
-        }
-      }
     }
-  } catch {}
+  } catch {
+    // Ignore errors
+  }
 
   useEffect(() => {
-    if (cesiumContainer.current && !viewerRef.current) {
+    if (cesiumContainer.current && !viewerRef.current && result) {
       // Set your Cesium Ion access token in api.keys as CESIUM_ION_ACCESS_TOKEN=your_token_here
       Cesium.Ion.defaultAccessToken = cesiumToken;
       const viewer = new Cesium.Viewer(cesiumContainer.current, {
@@ -70,14 +63,14 @@ const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
         viewerRef.current = null;
       }
     };
-  }, []);
+  }, [cesiumToken, result]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer || !result) return;
     viewer.entities.removeAll();
     const pathPositions = path.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.altitude));
-    const flightPathEntity = viewer.entities.add({
+    viewer.entities.add({
       name: 'Flight Path',
       polyline: {
         positions: pathPositions,

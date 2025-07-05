@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { LaunchParams, PredictionResult, LaunchWeather, WeatherPoint, WeatherForecast, ComprehensiveWeather } from '../types';
+import { LaunchParams, PredictionResult, WeatherPoint, WeatherForecast, ComprehensiveWeather } from '../types';
 import { fetchWeatherData } from '../services/weatherService';
 import { runPredictionSimulation } from '../services/predictionService';
 
@@ -8,7 +8,7 @@ export const usePrediction = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [launchWeather, setLaunchWeather] = useState<ComprehensiveWeather | null>(null);
-  const [weatherData, setWeatherData] = useState<any>(null);
+  const [weatherData, setWeatherData] = useState<{ hourly: { time: string[]; [key: string]: any } } | null>(null);
 
   const runPrediction = useCallback(async (params: LaunchParams) => {
     setIsLoading(true);

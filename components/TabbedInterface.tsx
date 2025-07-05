@@ -2,8 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LaunchParams, UnitSystem, CalculatorParams, PredictionResult, WeatherData } from '../types';
 import MissionPlanner from './MissionPlanner';
 import SafetyInfo from './SafetyInfo';
-import Visualization from './Visualization';
-import ThreeDVisualization from './ThreeDVisualization';
 import LeafletVisualization from './LeafletVisualization';
 import CalculatorTab from './CalculatorTab';
 import { ComprehensiveWeather } from '../types';
@@ -71,7 +69,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
 
   const tabs = [
     { id: 'calculator', label: 'Ascent & Burst Calculator', icon: '🧮' },
-    { id: 'mission', label: 'Mission Planning', icon: '🚀' },
+    { id: 'mission', label: 'Mission Planning', icon: '🎈' },
     { id: 'visualization', label: 'Trajectory View', icon: '🗺️' },
     { id: '3d', label: '3D View', icon: '🌍' },
     { id: 'safety', label: 'Safety Analysis', icon: '🛡️' },

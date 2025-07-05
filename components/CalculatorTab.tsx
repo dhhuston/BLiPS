@@ -3,7 +3,7 @@ import { CalculatorParams, UnitSystem, LaunchParams, GoalCalculationResult } fro
 import { calculateFlightPerformance, calculateGoalOptions } from '../services/predictionService';
 import {
   metersToFeet, feetToMeters,
-  msToFts, ftsToMs,
+  msToFts,
   gToOz, ozToG
 } from '../constants';
 
@@ -24,7 +24,7 @@ const CalculatorTab: React.FC<CalculatorTabProps> = ({
   setMissionParams,
   onApplyAndSwitch
 }) => {
-  const [calculationDetails, setCalculationDetails] = useState<any>(null);
+  const [calculationDetails, setCalculationDetails] = useState<{ ascentRate: number; burstAltitude: number } | null>(null);
   const [calcError, setCalcError] = useState<string | null>(null);
   const [isGoalMode, setIsGoalMode] = useState(false);
   const [targetBurstAltitude, setTargetBurstAltitude] = useState(30000); // Default 30km

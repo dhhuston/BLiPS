@@ -222,29 +222,24 @@ const LeafletVisualization: React.FC<VisualizationProps> = ({
   result, 
   mapResizeRef, 
   launchWeather, 
-  launchParams, 
+  launchParams: _launchParams, 
   prediction, 
   unitSystem,
   error,
-  tabSwitchCount
+  tabSwitchCount: _tabSwitchCount
 }) => {
-  if (!result) {
-    return (
-      <div className="w-full h-full flex items-center justify-center text-gray-400">
-        No prediction available. Please run a prediction.
-      </div>
-    );
-  }
-  
-  const { path, launchPoint, burstPoint, landingPoint } = result;
-
-  const pathCoordinates: L.LatLngExpression[] = path.map(p => [p.lat, p.lon]);
-  const bounds = L.latLngBounds(pathCoordinates);
+  // Always call ALL hooks at the top level - no conditional hooks
+  const mapRef = useRef<L.Map | null>(null);
+  const [landingWeather, setLandingWeather] = React.useState<ComprehensiveWeather | null>(null);
+  const [isLoadingLandingWeather, setIsLoadingLandingWeather] = React.useState(false);
 
   // Expose a resize/fit function to parent via ref
-  const mapRef = useRef<L.Map | null>(null);
   useEffect(() => {
-    if (mapResizeRef) {
+    if (mapResizeRef && result) {
+      const path = result.path;
+      const pathCoordinates: L.LatLngExpression[] = path.map(p => [p.lat, p.lon]);
+      const bounds = L.latLngBounds(pathCoordinates);
+      
       mapResizeRef.current = () => {
         if (mapRef.current) {
           mapRef.current.invalidateSize();
@@ -256,19 +251,9 @@ const LeafletVisualization: React.FC<VisualizationProps> = ({
         }
       };
     }
-  }, [mapResizeRef, bounds]);
-
-  // Handler for reset view button
-  const handleResetView = () => {
-    if (mapRef.current && bounds?.isValid()) {
-      mapRef.current.fitBounds(bounds, { padding: [40, 40] });
-    }
-  };
+  }, [mapResizeRef, result]);
 
   // Fetch real landing weather for landing location and time
-  const [landingWeather, setLandingWeather] = React.useState<ComprehensiveWeather | null>(null);
-  const [isLoadingLandingWeather, setIsLoadingLandingWeather] = React.useState(false);
-  
   React.useEffect(() => {
     const fetchLandingWeather = async () => {
       if (!prediction) {
@@ -477,6 +462,39 @@ const LeafletVisualization: React.FC<VisualizationProps> = ({
     
     fetchLandingWeather();
   }, [prediction, launchWeather]);
+
+  // Early return after ALL hooks are called
+  if (error) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-gray-400">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h3 className="text-xl font-semibold mb-2">Error</h3>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!result) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-gray-400">
+        No prediction available. Please run a prediction.
+      </div>
+    );
+  }
+
+  // Now safe to destructure and compute values after hooks are called
+  const { path, launchPoint, burstPoint, landingPoint } = result;
+  const pathCoordinates: L.LatLngExpression[] = path.map(p => [p.lat, p.lon]);
+  const bounds = L.latLngBounds(pathCoordinates);
+
+  // Handler for reset view button
+  const handleResetView = () => {
+    if (mapRef.current && bounds?.isValid()) {
+      mapRef.current.fitBounds(bounds, { padding: [40, 40] });
+    }
+  };
 
   // Creates a custom Leaflet icon using an SVG string
   const createIcon = (iconSvg: string): L.DivIcon => {

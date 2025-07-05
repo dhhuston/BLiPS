@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LaunchParams, UnitSystem, CalculatorParams, AppConfig, LaunchWeather } from './types';
+import { LaunchParams, UnitSystem, CalculatorParams, AppConfig } from './types';
 import { usePrediction } from './hooks/usePrediction';
 import Header from './components/Header';
 import TabbedInterface from './components/TabbedInterface';
