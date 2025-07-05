@@ -175,6 +175,14 @@ APRS_FI_API_KEY=your_aprs_fi_api_key_here
 
 The app will automatically load API keys from this file for local development. If you are deploying or sharing the project, each user should create their own `api.keys` file.
 
+To use CesiumJS for 3D globe visualization, you must also add your Cesium Ion access token to `api.keys`:
+
+```
+CESIUM_ION_ACCESS_TOKEN=your_cesium_ion_access_token_here
+```
+
+**Do not commit `api.keys` to version control.**
+
 ---
 
 **BLiPS** - Making balloon launch planning accessible and accurate.
