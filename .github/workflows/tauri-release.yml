@@ -77,12 +77,6 @@ jobs:
           sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc || true
           sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.0.pc /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.1.pc || true
 
-      - name: Install system dependencies (macOS only)
-        if: runner.os == 'macOS'
-        run: |
-          brew install webkit2gtk gtk+3 librsvg
-          # Most macOS runners have these, but this ensures they're present
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

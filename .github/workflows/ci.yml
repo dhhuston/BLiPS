@@ -94,6 +94,9 @@ jobs:
           gstreamer1.0-gtk3 \
           gstreamer1.0-pulseaudio \
           gstreamer1.0-x
+        # Symlinks for Tauri 2.x if 4.1 .pc files are missing
+        sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc || true
+        sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.0.pc /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.1.pc || true
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -109,6 +112,9 @@ jobs:
 
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
+
+    - name: Install Rust target
+      run: rustup target add x86_64-unknown-linux-gnu
 
     - name: Install Tauri CLI
       run: npm install -g @tauri-apps/cli@latest
