@@ -3,11 +3,14 @@ name: Tauri Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
     runs-on: ${{ matrix.platform }}
-
     strategy:
       matrix:
         include:
@@ -16,56 +19,58 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
           - platform: macos-latest
-            target: x86_64-apple-darwin
-
+            target: aarch64-apple-darwin
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Build frontend
-      run: npm run build
+      - name: Build frontend
+        run: npm run build
 
-    - name: Setup Rust
-      uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: Install Rust dependencies
-      run: |
-        rustup target add ${{ matrix.target }}
-        rustup show
+      - name: Debug matrix.target
+        run: echo "matrix.target is ${{ matrix.target }}"
 
-    - name: Build Tauri app
-      uses: tauri-apps/tauri-action@v0
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        args: --target ${{ matrix.target }}
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: blips-${{ matrix.platform }}-${{ matrix.target }}
-        path: src-tauri/target/release/
-        if-no-files-found: error
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@latest
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      if: matrix.platform == 'ubuntu-latest'
-      with:
-        files: |
-          src-tauri/target/release/*.deb
-          src-tauri/target/release/*.AppImage
-          src-tauri/target/release/*.msi
-          src-tauri/target/release/*.dmg
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+      - name: Build Tauri app
+        run: npx tauri build --target ${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: blips-${{ matrix.platform }}-${{ matrix.target }}
+          path: src-tauri/target/release/bundle/
+          if-no-files-found: error
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: matrix.platform == 'macos-latest'
+        with:
+          files: |
+            src-tauri/target/release/bundle/macos/*.app
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/windows/*.msi
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/appimage/*.AppImage
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
