@@ -102,10 +102,17 @@ jobs:
           echo "Downloaded artifacts:"
           find artifacts -type f -name "*" 2>/dev/null || echo "No artifacts found"
 
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          find artifacts -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" -o -name "*.app" \) -exec cp {} release-files/ \;
+          echo "Files prepared for release:"
+          ls -la release-files/
+
       - name: Create GitHub Release and upload files
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/**/*
+          files: release-files/*
           draft: false
           prerelease: false
           generate_release_notes: true
