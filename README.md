@@ -7,7 +7,7 @@ BLiPS is a sophisticated balloon launch prediction and flight planning software 
 - **Flight Trajectory Prediction**: Advanced algorithms for predicting balloon flight paths
 - **Weather Integration**: Real-time weather data integration for launch planning
 - **Multiple Visualization Options**: 
-  - Interactive 3D Globe visualization
+  - Interactive 3D Globe visualization (CesiumJS)
   - Leaflet map integration
   - Google Maps support (no API key required)
   - Altitude charts and graphs
@@ -21,14 +21,18 @@ BLiPS is a sophisticated balloon launch prediction and flight planning software 
   - Gas type selection (Helium/Hydrogen)
 - **Configuration Management**: Save and load mission configurations
 - **Unit System Support**: Metric and Imperial unit systems
+- **APRS Real-Time Tracking**: Track balloon positions via APRS.fi
+- **Settings Management**: Secure API key management for Tauri users
 
 ## 🛠️ Technology Stack
 
 - **Frontend**: React 19 with TypeScript
 - **Build Tool**: Vite
 - **Maps**: Leaflet, Google Maps (no API key required)
+- **3D Visualization**: CesiumJS
 - **Charts**: Recharts
 - **Styling**: Tailwind CSS
+- **Desktop App**: Tauri
 
 ## 📋 Prerequisites
 
@@ -54,6 +58,17 @@ BLiPS is a sophisticated balloon launch prediction and flight planning software 
    ```
 
 4. **Open your browser** and navigate to `http://localhost:5173`
+
+### Desktop App (Tauri)
+
+For desktop users, BLiPS is also available as a native desktop application:
+
+1. **Build the desktop app**:
+   ```bash
+   npm run tauri build
+   ```
+
+2. **Install the desktop app** from the generated installer in `src-tauri/target/release/`
 
 ## 🎯 Usage
 
@@ -85,6 +100,19 @@ BLiPS is a sophisticated balloon launch prediction and flight planning software 
 - **Weather Analysis**: View weather conditions at launch and during flight
 - **Multiple Visualizations**: Switch between different map and chart views
 - **Unit Conversion**: Toggle between metric and imperial units
+- **APRS Tracking**: Real-time balloon position tracking
+- **3D Globe View**: Interactive 3D visualization with CesiumJS
+
+### Settings Configuration
+
+BLiPS includes a settings panel for managing API keys and configuration:
+
+1. **Navigate to Settings**: Click the "Settings" tab in the main interface
+2. **APRS.fi API Key**: Enter your APRS.fi API key for real-time tracking
+3. **Cesium Ion Access Token**: Enter your Cesium Ion token for 3D globe visualization
+4. **Save Settings**: Click "Save Settings" to store your configuration
+
+**For Tauri Desktop Users**: Settings are automatically saved and persist between app launches.
 
 ## 📁 Project Structure
 
@@ -94,16 +122,20 @@ blips/
 │   ├── Header.tsx      # Application header
 │   ├── MissionPlanner.tsx # Mission planning interface
 │   ├── Visualization.tsx  # Main visualization component
+│   ├── GlobeVisualization.tsx # 3D Cesium globe view
+│   ├── LeafletVisualization.tsx # 2D map view
 │   ├── SafetyInfo.tsx     # Safety analysis display
 │   └── icons/          # Icon components
 ├── services/           # API and service layer
 │   ├── predictionService.ts # Flight prediction logic
 │   ├── weatherService.ts    # Weather data integration
-│   └── atcService.ts        # ATC zone identification
+│   ├── atcService.ts        # ATC zone identification
+│   └── aprsService.ts       # APRS tracking service
 ├── hooks/              # Custom React hooks
 │   └── usePrediction.ts     # Prediction hook
 ├── types.ts            # TypeScript type definitions
 ├── constants.ts        # Application constants
+├── src-tauri/          # Tauri desktop app configuration
 └── App.tsx            # Main application component
 ```
 
@@ -114,6 +146,8 @@ blips/
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
+- `npm run tauri dev` - Start Tauri development
+- `npm run tauri build` - Build Tauri desktop app
 
 ### Code Style
 
@@ -165,23 +199,42 @@ If you encounter any issues or have questions:
 
 ## API Keys
 
-To use APRS.fi or other API services, create a file named `api.keys` in the project root. This file should contain your API keys in the following format:
+BLiPS supports multiple methods for API key configuration:
+
+### Method 1: Settings UI (Recommended for Tauri Users)
+
+1. Open the app and navigate to the "Settings" tab
+2. Enter your API keys in the provided fields:
+   - **APRS.fi API Key**: For real-time balloon tracking
+   - **Cesium Ion Access Token**: For 3D globe visualization
+3. Click "Save Settings" to store your configuration
+
+### Method 2: Configuration File (For Development)
+
+Create a file named `api.keys` in the project root with your API keys:
 
 ```
 APRS_FI_API_KEY=your_aprs_fi_api_key_here
-```
-
-**Do not commit `api.keys` to version control.**
-
-The app will automatically load API keys from this file for local development. If you are deploying or sharing the project, each user should create their own `api.keys` file.
-
-To use CesiumJS for 3D globe visualization, you must also add your Cesium Ion access token to `api.keys`:
-
-```
 CESIUM_ION_ACCESS_TOKEN=your_cesium_ion_access_token_here
 ```
 
-**Do not commit `api.keys` to version control.**
+**Important**: Do not commit `api.keys` to version control. This file is automatically ignored by git.
+
+### Getting API Keys
+
+#### APRS.fi API Key
+1. Go to [aprs.fi API page](https://aprs.fi/page/api)
+2. Sign in or create a free account
+3. Request a new API key for your application
+4. Copy the API key and paste it in the settings
+
+#### Cesium Ion Access Token
+1. Go to [Cesium Ion Tokens page](https://cesium.com/ion/tokens)
+2. Sign in or create a free account
+3. Create a new access token for your application
+4. Copy the token and paste it in the settings
+
+**Security Note**: Never share your API keys publicly or commit them to version control.
 
 ---
 

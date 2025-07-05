@@ -1,0 +1,6 @@
+
+{
+  "name": "BLiPS - Balloon Launch Prediction Software",
+  "description": "BLiPS (Balloon Launch Prediction Software) is an advanced, web-based tool for high-altitude balloon enthusiasts and researchers. It provides a comprehensive suite of tools for planning, predicting, and visualizing balloon flights with a physics-based engine and real-world weather data.",
+  "requestFramePermissions": []
+}

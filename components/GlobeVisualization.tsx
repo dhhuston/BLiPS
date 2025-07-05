@@ -25,11 +25,12 @@ const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
   const viewerRef = useRef<any | null>(null);
   const { path, launchPoint, burstPoint, landingPoint } = result;
 
-  // Load Cesium Ion access token from api.keys (for local dev) or environment
+  // Load Cesium Ion access token from localStorage (for Tauri), window/global, or api.keys (for local dev)
   let cesiumToken = '';
   try {
-    // @ts-ignore
-    if (typeof window === 'undefined') {
+    if (typeof window !== 'undefined') {
+      cesiumToken = localStorage.getItem('cesiumIonAccessToken') || (window as any).CESIUM_ION_ACCESS_TOKEN || '';
+    } else {
       const fs = require('fs');
       if (fs.existsSync('./api.keys')) {
         const lines = fs.readFileSync('./api.keys', 'utf-8').split('\n');
@@ -40,8 +41,6 @@ const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
           }
         }
       }
-    } else {
-      cesiumToken = (window as any).CESIUM_ION_ACCESS_TOKEN || '';
     }
   } catch {}
 

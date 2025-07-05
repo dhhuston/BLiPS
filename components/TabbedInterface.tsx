@@ -275,6 +275,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
 const SettingsTab: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
   const [callsign, setCallsign] = useState('');
+  const [cesiumToken, setCesiumToken] = useState('');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -282,11 +283,14 @@ const SettingsTab: React.FC = () => {
     if (storedApiKey) setApiKey(storedApiKey);
     const storedCallsign = localStorage.getItem('aprsFiCallsign');
     if (storedCallsign) setCallsign(storedCallsign);
+    const storedCesiumToken = localStorage.getItem('cesiumIonAccessToken');
+    if (storedCesiumToken) setCesiumToken(storedCesiumToken);
   }, []);
 
   const handleSave = () => {
     localStorage.setItem('aprsFiApiKey', apiKey);
     localStorage.setItem('aprsFiCallsign', callsign);
+    localStorage.setItem('cesiumIonAccessToken', cesiumToken);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -314,6 +318,16 @@ const SettingsTab: React.FC = () => {
           placeholder="E.g., N0CALL-9"
         />
       </div>
+      <div className="mb-4">
+        <label className="block text-gray-300 font-medium mb-1">Cesium Ion Access Token</label>
+        <input
+          type="text"
+          value={cesiumToken}
+          onChange={e => setCesiumToken(e.target.value)}
+          className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring focus:border-cyan-500"
+          placeholder="Enter your Cesium Ion access token"
+        />
+      </div>
       <button
         onClick={handleSave}
         className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded shadow transition"
@@ -330,6 +344,16 @@ const SettingsTab: React.FC = () => {
           <li>Copy the API key and paste it above.</li>
         </ol>
         <p className="mt-2 text-yellow-300 text-xs">Never share your API key publicly or commit it to version control.</p>
+      </div>
+      <div className="bg-gray-900 p-4 rounded border border-gray-700 mt-4">
+        <h3 className="text-lg font-semibold text-cyan-200 mb-2">How to get your Cesium Ion Access Token</h3>
+        <ol className="list-decimal list-inside text-gray-300 space-y-1">
+          <li>Go to <a href="https://cesium.com/ion/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">Cesium Ion Tokens page</a>.</li>
+          <li>Sign in or create a free account.</li>
+          <li>Create a new access token for your application.</li>
+          <li>Copy the token and paste it above.</li>
+        </ol>
+        <p className="mt-2 text-yellow-300 text-xs">Never share your Cesium token publicly or commit it to version control.</p>
       </div>
     </div>
   );

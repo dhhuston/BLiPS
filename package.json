@@ -1,0 +1,67 @@
+{
+  "name": "blips",
+  "description": "Balloon Launch Prediction Software - Advanced trajectory prediction and mission planning for high-altitude balloon launches",
+  "version": "0.1.0",
+  "type": "module",
+  "private": false,
+  "homepage": "https://yourusername.github.io/blips",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/blips.git"
+  },
+  "keywords": [
+    "balloon",
+    "launch",
+    "prediction",
+    "trajectory",
+    "weather",
+    "aviation",
+    "flight-planning",
+    "react",
+    "typescript"
+  ],
+  "author": "BLiPS Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/blips/issues"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "@types/three": "^0.178.0",
+    "apexcharts": "^4.0.0",
+    "cesium": "^1.131.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "leaflet": "1.9.4",
+    "node-fetch": "^3.3.2",
+    "react": "^19.1.0",
+    "react-apexcharts": "1.7.0",
+    "react-dom": "^19.1.0",
+    "react-leaflet": "5.0.0",
+    "three": "^0.178.0",
+    "vite-plugin-cesium": "^1.2.23"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/cli": "^2.6.2",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/leaflet": "^1.9.19",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.8",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0",
+    "vitest": "^3.2.4"
+  }
+}
