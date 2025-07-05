@@ -37,9 +37,12 @@ jobs:
             build-essential \
             curl \
             wget \
+            file \
             libssl-dev \
             libappindicator3-dev \
-            librsvg2-dev
+            librsvg2-dev \
+            libsoup-3.0-0 \
+            libsoup-3.0-dev
 
       - name: Symlink javascriptcoregtk-4.0.pc to javascriptcoregtk-4.1.pc (Linux only)
         if: runner.os == 'Linux'
