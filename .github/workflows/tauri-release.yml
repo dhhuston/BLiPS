@@ -110,6 +110,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Debug bundle output (macOS/Windows)
+        if: runner.os == 'macOS' || runner.os == 'Windows'
+        run: |
+          echo "Listing bundle output for ${{ matrix.platform }}"
+          ls -lR src-tauri/target/release/bundle/
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
