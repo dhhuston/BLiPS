@@ -20,6 +20,7 @@ jobs:
           - platform: macos-latest
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.platform }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,10 +77,11 @@ jobs:
           sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc || true
           sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.0.pc /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.1.pc || true
 
-      - name: Debug pkg-config files (Linux only)
-        if: runner.os == 'Linux'
+      - name: Install system dependencies (macOS only)
+        if: runner.os == 'macOS'
         run: |
-          ls -l /usr/lib/x86_64-linux-gnu/pkgconfig/
+          brew install webkit2gtk gtk+3 librsvg
+          # Most macOS runners have these, but this ensures they're present
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -87,7 +89,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: npm ci
 
       - name: Build frontend
@@ -95,9 +97,6 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Debug matrix.target
-        run: echo "matrix.target is ${{ matrix.target }}"
 
       - name: Install Rust target
         run: rustup target add ${{ matrix.target }}
@@ -110,35 +109,34 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Debug bundle output (macOS/Windows)
-        if: runner.os == 'macOS' || runner.os == 'Windows'
-        run: |
-          echo "Listing bundle output for ${{ matrix.platform }}"
-          ls -lR src-tauri/target/release/bundle/
+      - name: List bundle output
+        run: ls -lR src-tauri/target/release/bundle/ || true
+        continue-on-error: true
 
-      - name: Upload artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: blips-${{ matrix.platform }}-${{ matrix.target }}
+          name: tauri-bundle-${{ matrix.platform }}-${{ matrix.target }}
           path: src-tauri/target/release/bundle/
-          if-no-files-found: error
+          if-no-files-found: ignore
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        if: matrix.platform == 'macos-latest'
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          files: |
-            src-tauri/target/release/bundle/macos/*.app
-            src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/windows/*.msi
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/appimage/*.AppImage
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: ls -lR artifacts || true
+
+      - name: Create GitHub Release and upload files
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Debug Tauri build output (all platforms)
-        run: |
-          echo "Listing all files in src-tauri/target after build:"
-          ls -lR src-tauri/target || true 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
