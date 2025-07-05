@@ -136,4 +136,9 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Debug Tauri build output (all platforms)
+        run: |
+          echo "Listing all files in src-tauri/target after build:"
+          ls -lR src-tauri/target || true 
