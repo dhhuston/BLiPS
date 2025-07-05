@@ -11,6 +11,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - platform: ubuntu-22.04
@@ -19,6 +20,8 @@ jobs:
             target: x86_64-pc-windows-msvc
           - platform: macos-latest
             target: aarch64-apple-darwin
+          - platform: macos-latest
+            target: x86_64-apple-darwin
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -26,56 +29,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install system dependencies (Linux only)
-        if: runner.os == 'Linux'
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libwebkit2gtk-4.0-dev \
-            libjavascriptcoregtk-4.0-dev \
-            libsoup-3.0-0 \
-            libsoup-3.0-dev \
-            libgtk-3-dev \
-            libglib2.0-dev \
-            libssl-dev \
+            libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            pkg-config \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libatk1.0-dev \
-            libgdk-pixbuf2.0-dev \
-            libpango1.0-dev \
-            libx11-dev \
-            libxcomposite-dev \
-            libxcursor-dev \
-            libxdamage-dev \
-            libxext-dev \
-            libxfixes-dev \
-            libxi-dev \
-            libxrandr-dev \
-            libxrender-dev \
-            libxtst-dev \
-            libgtk-3-0 \
-            libnotify-dev \
-            libsecret-1-dev \
-            libsqlite3-dev \
-            libxml2-dev \
-            libxslt1-dev \
-            gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good \
-            gstreamer1.0-plugins-bad \
-            gstreamer1.0-plugins-ugly \
-            gstreamer1.0-libav \
-            gstreamer1.0-alsa \
-            gstreamer1.0-gl \
-            gstreamer1.0-gtk3 \
-            gstreamer1.0-pulseaudio \
-            gstreamer1.0-x
-          # Symlinks for Tauri 2.x if 4.1 .pc files are missing
-          sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc || true
-          sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.0.pc /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.1.pc || true
+            patchelf
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -91,9 +52,8 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Rust target
-        run: rustup target add ${{ matrix.target }}
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@latest
@@ -103,20 +63,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: List bundle output
-        run: ls -lR src-tauri/target/release/bundle/ || true
+      - name: List bundle output (debug)
+        run: |
+          echo "Listing src-tauri/target/${{ matrix.target }}/release/bundle/"
+          ls -la src-tauri/target/${{ matrix.target }}/release/bundle/ || echo "Bundle directory not found"
+          echo "Listing all target directories:"
+          find src-tauri/target -name "bundle" -type d 2>/dev/null || echo "No bundle directories found"
         continue-on-error: true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: tauri-bundle-${{ matrix.platform }}-${{ matrix.target }}
-          path: src-tauri/target/release/bundle/
-          if-no-files-found: ignore
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/
+            src-tauri/target/release/bundle/
+          if-no-files-found: warn
 
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -124,13 +91,16 @@ jobs:
           path: artifacts
 
       - name: List downloaded artifacts
-        run: ls -lR artifacts || true
+        run: |
+          echo "Downloaded artifacts:"
+          find artifacts -type f -name "*" 2>/dev/null || echo "No artifacts found"
 
       - name: Create GitHub Release and upload files
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*
           draft: false
           prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
