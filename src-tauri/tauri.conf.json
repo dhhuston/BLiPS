@@ -1,17 +1,13 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "identifier": "com.blips.app",
   "productName": "BLiPS",
   "version": "0.9.0",
-  "identifier": "com.blips.app",
   "build": {
-    "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "devPath": "http://localhost:5173/",
-    "distDir": "../dist",
-    "withGlobalTauri": false,
-    "outputFileName": "BLiPS-v${version}-${platform}-${arch}.${ext}"
+    "beforeDevCommand": "",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
   },
   "app": {
     "windows": [
