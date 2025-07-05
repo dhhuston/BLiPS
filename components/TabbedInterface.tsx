@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LaunchParams, UnitSystem, CalculatorParams, PredictionResult } from '../types';
+import { LaunchParams, UnitSystem, CalculatorParams, PredictionResult, WeatherData } from '../types';
 import MissionPlanner from './MissionPlanner';
 import SafetyInfo from './SafetyInfo';
 import Visualization from './Visualization';
@@ -8,6 +8,7 @@ import LeafletVisualization from './LeafletVisualization';
 import CalculatorTab from './CalculatorTab';
 import { ComprehensiveWeather } from '../types';
 import GlobeVisualization from './GlobeVisualization';
+import LivePredictionPanel from './LivePredictionPanel';
 
 interface TabbedInterfaceProps {
   launchParams: LaunchParams;
@@ -22,6 +23,7 @@ interface TabbedInterfaceProps {
   error: string | null;
   launchARTCC: string | null;
   landingARTCC: string | null;
+  weatherData?: WeatherData | null;
 }
 
 const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
@@ -36,7 +38,8 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
   prediction,
   error,
   launchARTCC,
-  landingARTCC
+  landingARTCC,
+  weatherData
 }) => {
   const [activeTab, setActiveTab] = useState('calculator');
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
@@ -227,6 +230,14 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
               </div>
             </div>
             <APRSTrackingPanel />
+            {weatherData && (
+              <LivePredictionPanel
+                originalPrediction={prediction}
+                launchParams={launchParams}
+                weatherData={weatherData}
+                unitSystem={unitSystem}
+              />
+            )}
           </div>
         ) : (
           <div className="text-center py-12 text-gray-400">

@@ -130,10 +130,7 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
     }
   };
 
-  const handleQuickLocation = (lat: number, lon: number, name: string) => {
-    onMapChange(lat, lon);
-    setSearchQuery(name);
-  };
+
 
   // Update coordinate input when props change
   useEffect(() => {
@@ -142,15 +139,6 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
       lon: lon.toString()
     });
   }, [lat, lon]);
-
-  const quickLocations = [
-    { name: 'New York', lat: 40.7128, lon: -74.0060 },
-    { name: 'Los Angeles', lat: 34.0522, lon: -118.2437 },
-    { name: 'Chicago', lat: 41.8781, lon: -87.6298 },
-    { name: 'Houston', lat: 29.7604, lon: -95.3698 },
-    { name: 'Phoenix', lat: 33.4484, lon: -112.0740 },
-    { name: 'Philadelphia', lat: 39.9526, lon: -75.1652 },
-  ];
 
   return (
     <div className="space-y-4">
@@ -171,19 +159,6 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
         >
           {isSearching ? 'Searching...' : 'Search'}
         </button>
-      </div>
-
-      {/* Quick Locations */}
-      <div className="grid grid-cols-2 gap-2">
-        {quickLocations.map((location) => (
-          <button
-            key={location.name}
-            onClick={() => handleQuickLocation(location.lat, location.lon, location.name)}
-            className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-md transition-colors"
-          >
-            {location.name}
-          </button>
-        ))}
       </div>
 
       {/* Coordinate Input */}

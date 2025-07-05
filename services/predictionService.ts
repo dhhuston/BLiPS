@@ -1,4 +1,4 @@
-import { LaunchParams, WeatherData, FlightPoint, PredictionResult, CalculatorParams, CalculationBreakdown, CalculationStep } from '../types';
+import { LaunchParams, WeatherData, FlightPoint, PredictionResult, CalculatorParams, CalculationBreakdown, CalculationStep, GoalCalculationResult, GoalCalculationOption } from '../types';
 import { 
   EARTH_RADIUS_M, 
   TIME_STEP_S, 
@@ -312,4 +312,195 @@ export const calculateFlightPerformance = (
   if (isNaN(ascentRate) || isNaN(burstAltitude) || burstAltitude < 0) return null;
 
   return { steps, ascentRate, burstAltitude };
+};
+
+/**
+ * Find payload weight and neck lift combinations for fixed balloon/parachute to achieve target burst altitude
+ */
+export const calculateGoalOptions = (
+  targetBurstAltitude: number,
+  balloonWeight: number,
+  parachuteWeight: number,
+  gas: 'Helium' | 'Hydrogen',
+  launchAltitude: number
+): GoalCalculationResult => {
+  const warnings: string[] = [];
+  const options: GoalCalculationOption[] = [];
+  
+  // Validate target altitude
+  if (targetBurstAltitude < 5000) {
+    warnings.push('Target burst altitude is very low. Consider higher altitude for better performance.');
+  }
+  if (targetBurstAltitude > 45000) {
+    warnings.push('Target burst altitude is very high. May require specialized equipment.');
+  }
+  
+  // Calculate burst characteristics for this balloon weight
+  const burstRadius = 0.479 * Math.pow(balloonWeight, 0.3115);
+  const burstVolume = (4 / 3) * Math.PI * Math.pow(burstRadius, 3);
+  
+  // Calculate pressure requirements
+  const targetPressure = altitudeToPressure(targetBurstAltitude);
+  const pressureAtLaunch = altitudeToPressure(launchAltitude);
+  const temperatureRatio = AVG_STRATOSPHERE_TEMP_K / SEA_LEVEL_TEMP_K;
+  
+  // Calculate required volume ratio: V_launch / V_burst = (P_burst / P_launch) / (T_burst / T_launch)
+  const requiredVolumeRatio = (targetPressure / pressureAtLaunch) / temperatureRatio;
+  
+  if (requiredVolumeRatio <= 0 || requiredVolumeRatio >= 1) {
+    warnings.push('Target altitude may not be achievable with this balloon size.');
+    return { targetBurstAltitude, options: [], warnings };
+  }
+  
+  // Calculate required launch volume
+  const requiredLaunchVolume = burstVolume * requiredVolumeRatio;
+  
+  // Gas properties
+  const gasDensity = gas === 'Helium' ? GAS_DENSITY_HELIUM_KGM3 : GAS_DENSITY_HYDROGEN_KGM3;
+  const liftPerM3 = AIR_DENSITY_SEA_LEVEL_KGM3 - gasDensity;
+  
+  // Calculate required gross lift
+  const requiredGrossLiftKg = requiredLaunchVolume * liftPerM3;
+  
+  // Try different neck lift values (realistic range: 200g to 2000g)
+  const neckLiftOptions = [200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 1800, 2000]; // grams
+  
+  for (const neckLift of neckLiftOptions) {
+    try {
+      const neckLiftKg = neckLift / 1000;
+      
+      // Calculate required total system weight
+      const totalSystemWeightKg = requiredGrossLiftKg - neckLiftKg;
+      const totalSystemWeightG = totalSystemWeightKg * 1000;
+      
+      // Calculate required payload weight
+      const requiredPayloadWeight = totalSystemWeightG - balloonWeight - parachuteWeight;
+      
+      // Skip if payload weight is unrealistic
+      if (requiredPayloadWeight < 100 || requiredPayloadWeight > 5000) {
+        continue; // Skip impractical payload weights
+      }
+      
+      // Skip if neck lift is outside realistic amateur balloon ranges
+      if (neckLift < 200 || neckLift > 2000) {
+        continue; // Skip impractical neck lift values
+      }
+      
+      // Create test parameters to verify actual performance
+      const testParams: CalculatorParams = {
+        payloadWeight: requiredPayloadWeight,
+        balloonWeight,
+        parachuteWeight,
+        neckLift,
+        gas
+      };
+      
+      const testResult = calculateFlightPerformance(testParams, launchAltitude);
+      if (!testResult) continue;
+      
+      // Check how close we got to target
+      const altitudeDifference = Math.abs(testResult.burstAltitude - targetBurstAltitude);
+      const altitudeAccuracy = 1 - (altitudeDifference / targetBurstAltitude);
+      
+      if (altitudeAccuracy < 0.85) continue; // Skip if we're off by more than 15%
+      
+      // Determine feasibility
+      let feasibility: 'excellent' | 'good' | 'marginal' | 'poor' = 'poor';
+      let notes = '';
+      
+      if (altitudeAccuracy > 0.98) {
+        feasibility = 'excellent';
+      } else if (altitudeAccuracy > 0.95) {
+        feasibility = 'good';
+      } else if (altitudeAccuracy > 0.90) {
+        feasibility = 'marginal';
+        notes = 'Altitude accuracy within 10% of target';
+      }
+      
+      // Check ascent rate reasonableness
+      if (testResult.ascentRate < 3) {
+        feasibility = feasibility === 'excellent' ? 'good' : 'marginal';
+        notes += notes ? '; ' : '';
+        notes += 'Slow ascent rate may affect accuracy';
+      } else if (testResult.ascentRate > 8) {
+        feasibility = feasibility === 'excellent' ? 'good' : 'marginal';
+        notes += notes ? '; ' : '';
+        notes += 'Fast ascent rate may cause early burst';
+      }
+      
+      // Check payload weight reasonableness
+      if (requiredPayloadWeight > 3000) {
+        feasibility = feasibility === 'excellent' ? 'good' : 'marginal';
+        notes += notes ? '; ' : '';
+        notes += 'Heavy payload may stress balloon';
+      }
+      
+      // Check neck lift reasonableness
+      if (neckLift < 300) {
+        notes += notes ? '; ' : '';
+        notes += 'Low neck lift may cause slow ascent';
+      } else if (neckLift > 1500) {
+        notes += notes ? '; ' : '';
+        notes += 'High neck lift may cause fast ascent';
+      }
+      
+      // Create description based on payload weight and lift characteristics
+      let description = '';
+      if (requiredPayloadWeight < 500) {
+        description = 'Light payload - good for basic tracking';
+      } else if (requiredPayloadWeight < 1500) {
+        description = 'Medium payload - suitable for cameras and sensors';
+      } else if (requiredPayloadWeight < 3000) {
+        description = 'Heavy payload - for complex scientific instruments';
+      } else {
+        description = 'Very heavy payload - requires careful balloon selection';
+      }
+      
+      // Add lift description
+      if (neckLift < 500) {
+        description += ' (low lift)';
+      } else if (neckLift < 1000) {
+        description += ' (moderate lift)';
+      } else {
+        description += ' (high lift)';
+      }
+      
+      options.push({
+        payloadWeight: requiredPayloadWeight,
+        neckLift,
+        totalSystemWeight: totalSystemWeightG,
+        ascentRate: testResult.ascentRate,
+        burstAltitude: testResult.burstAltitude,
+        description,
+        feasibility,
+        notes
+      });
+      
+    } catch (error) {
+      console.warn(`Failed to calculate option for neck lift ${neckLift}g:`, error);
+    }
+  }
+  
+  // Sort options by feasibility and practical considerations
+  options.sort((a, b) => {
+    const feasibilityOrder = { 'excellent': 0, 'good': 1, 'marginal': 2, 'poor': 3 };
+    const feasibilityCompare = feasibilityOrder[a.feasibility] - feasibilityOrder[b.feasibility];
+    if (feasibilityCompare !== 0) return feasibilityCompare;
+    
+    // If feasibility is same, prefer moderate neck lift values (800-1200g)
+    const aLiftScore = Math.abs(a.neckLift - 1000); // Prefer around 1000g
+    const bLiftScore = Math.abs(b.neckLift - 1000);
+    return aLiftScore - bLiftScore;
+  });
+  
+  if (options.length === 0) {
+    warnings.push('No viable payload/lift combinations found for target altitude with this balloon.');
+    warnings.push('Try adjusting target altitude or selecting a different balloon weight.');
+  }
+  
+  return {
+    targetBurstAltitude,
+    options: options.slice(0, 8), // Limit to top 8 options
+    warnings
+  };
 };

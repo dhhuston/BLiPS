@@ -58,7 +58,7 @@ export interface WeatherData {
     surface_pressure?: (number | null)[];
     cape?: (number | null)[];
     cin?: (number | null)[];
-    [key: string]: (number | null)[] | string[];
+    [key: string]: (number | null)[] | string[] | undefined;
   };
   latitude: number;
   longitude: number;
@@ -128,4 +128,86 @@ export interface CalculationBreakdown {
     steps: CalculationStep[];
     ascentRate: number;
     burstAltitude: number;
+}
+
+export interface GoalCalculationOption {
+    payloadWeight: number; // grams
+    neckLift: number; // grams  
+    totalSystemWeight: number; // grams
+    ascentRate: number; // m/s
+    burstAltitude: number; // meters (should match target)
+    description: string;
+    feasibility: 'excellent' | 'good' | 'marginal' | 'poor';
+    notes?: string;
+}
+
+export interface GoalCalculationResult {
+    targetBurstAltitude: number;
+    options: GoalCalculationOption[];
+    warnings: string[];
+}
+
+// --- Live APRS Prediction Types ---
+
+export interface APRSPosition {
+    time: number; // Unix timestamp
+    lat: number;
+    lng: number;
+    altitude?: number; // meters
+    speed?: number; // m/s
+    course?: number; // degrees
+    comment?: string;
+}
+
+export interface FlightPhase {
+    phase: 'ascent' | 'burst' | 'descent' | 'landed' | 'unknown';
+    confidence: number; // 0-1
+    detectedAt: number; // Unix timestamp
+}
+
+export interface ActualFlightMetrics {
+    currentPosition: APRSPosition;
+    flightPhase: FlightPhase;
+    actualAscentRate?: number; // m/s
+    actualDescentRate?: number; // m/s
+    actualBurstAltitude?: number; // meters
+    timeToLanding?: number; // seconds
+    deviationFromPredicted: {
+        distance: number; // meters
+        bearing: number; // degrees
+        altitudeDifference: number; // meters
+    };
+}
+
+export interface LivePredictionComparison {
+    originalPrediction: PredictionResult;
+    updatedPrediction?: PredictionResult;
+    actualMetrics: ActualFlightMetrics;
+    accuracy: {
+        trajectoryAccuracy: number; // 0-1
+        altitudeAccuracy: number; // 0-1
+        timingAccuracy: number; // 0-1
+        overallAccuracy: number; // 0-1
+    };
+    recommendations: string[];
+}
+
+export interface LiveWeatherEstimate {
+    estimatedWindSpeed: number; // m/s
+    estimatedWindDirection: number; // degrees
+    confidence: number; // 0-1
+    altitude: number; // meters
+    derivedFrom: 'trajectory_analysis' | 'weather_model' | 'hybrid';
+}
+
+export interface DummyFlightConfig {
+    enabled: boolean;
+    scenario: 'standard' | 'early_burst' | 'wind_shear' | 'slow_ascent' | 'fast_descent';
+    beaconInterval: number; // seconds
+    startTime: number; // Unix timestamp
+    currentTime: number; // Unix timestamp
+    noiseLevel: number; // 0-1, amount of random variation
+    lastBeaconTime?: number; // Unix timestamp of last beacon
+    assumedLanded?: boolean; // When beacon is lost at low altitude
+    assumedLandingLocation?: { lat: number; lng: number; time: number }; // Predicted landing location
 }

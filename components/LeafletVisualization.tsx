@@ -67,7 +67,8 @@ function formatWeather(weather: ComprehensiveWeather | null, unitSystem: UnitSys
               <br />• Network connectivity issues
               <br />• API service temporarily unavailable
               <br />• Invalid location or time parameters
-              <br />• Try refreshing or selecting a different time
+              <br />• Remote location with limited weather coverage
+              <br />• Try refreshing or selecting a different time/location
             </div>
           </div>
         </div>
@@ -264,12 +265,218 @@ const LeafletVisualization: React.FC<VisualizationProps> = ({
     }
   };
 
-  // Estimate landing weather (simulate by shifting launchWeather time)
-  let landingWeather: ComprehensiveWeather | null = null;
-  if (launchWeather && prediction) {
-    // For demo: just use launchWeather but mark as 'estimated at landing time'
-    landingWeather = { ...launchWeather };
-  }
+  // Fetch real landing weather for landing location and time
+  const [landingWeather, setLandingWeather] = React.useState<ComprehensiveWeather | null>(null);
+  const [isLoadingLandingWeather, setIsLoadingLandingWeather] = React.useState(false);
+  
+  React.useEffect(() => {
+    const fetchLandingWeather = async () => {
+      if (!prediction) {
+        setLandingWeather(null);
+        return;
+      }
+      
+             setIsLoadingLandingWeather(true);
+       try {
+         // Validate and calculate landing time from prediction
+         const rawLandingTime = prediction.landingPoint.time;
+         const rawLaunchTime = prediction.launchPoint.time;
+         console.log('Raw times - Landing:', rawLandingTime, 'Launch:', rawLaunchTime);
+         
+         let landingTime: Date;
+         
+         // Check if we have a valid timestamp
+         if (!rawLandingTime || rawLandingTime < 946684800) { // Before year 2000
+           console.warn('Invalid landing time detected, using fallback calculation');
+           
+           // Try to use launch time + flight duration
+           if (rawLaunchTime && rawLaunchTime > 946684800) {
+             const launchTime = new Date(rawLaunchTime * 1000);
+             const flightDuration = prediction.flightDuration || prediction.totalTime || 3600; // Default 1 hour
+             landingTime = new Date(launchTime.getTime() + flightDuration * 1000);
+             console.log('Using launch time + duration:', landingTime.toLocaleString());
+           } else {
+             // Last resort: use current time + 2 hours
+             landingTime = new Date(Date.now() + 2 * 60 * 60 * 1000);
+             console.log('Using current time + 2 hours as fallback:', landingTime.toLocaleString());
+           }
+         } else {
+           landingTime = new Date(rawLandingTime * 1000);
+           console.log('Using valid landing time:', landingTime.toLocaleString());
+         }
+         
+         // Validate that the landing time isn't too far in the future (weather APIs have limits)
+         const maxFutureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days ahead
+         if (landingTime > maxFutureDate) {
+           console.warn('Landing time is too far in the future, using current time + 1 hour');
+           landingTime = new Date(Date.now() + 60 * 60 * 1000);
+         }
+         
+         const landingTimeISO = landingTime.toISOString();
+         
+         console.log(`Fetching landing weather for: ${prediction.landingPoint.lat.toFixed(4)}, ${prediction.landingPoint.lon.toFixed(4)} at ${landingTime.toLocaleString()}`);
+        
+        // Import weather service dynamically to avoid issues
+        const { fetchWeatherData } = await import('../services/weatherService');
+        
+        // Fetch weather for landing location and time
+        const landingWeatherData = await fetchWeatherData(
+          prediction.landingPoint.lat,
+          prediction.landingPoint.lon,
+          landingTimeISO
+        );
+        
+        if (landingWeatherData) {
+          // Find the closest time to landing in the weather data (more flexible approach)
+          const landingTimeSeconds = Math.floor(landingTime.getTime() / 1000);
+          const landingTimeHour = Math.floor(landingTimeSeconds / 3600) * 3600;
+          let timeIndex = -1;
+          let minTimeDiff = Infinity;
+          
+          // Find the closest available time, even if it's more than 30 minutes away
+          landingWeatherData.hourly.time.forEach((t, index) => {
+            const weatherTime = new Date(t).getTime() / 1000;
+            const timeDiff = Math.abs(weatherTime - landingTimeHour);
+            if (timeDiff < minTimeDiff) {
+              minTimeDiff = timeDiff;
+              timeIndex = index;
+            }
+          });
+          
+          if (timeIndex >= 0) {
+            const timeDiffHours = minTimeDiff / 3600;
+            console.log(`Using weather data from ${timeDiffHours.toFixed(1)} hours ${timeDiffHours > 0 ? 'after' : 'before'} landing time`);
+            
+                         // Add a note about time difference if it's significant
+             let weatherTimeNote = timeDiffHours > 2 ? 
+               `⚠️ Weather data is from ${timeDiffHours.toFixed(1)} hours ${timeDiffHours > 0 ? 'after' : 'before'} estimated landing time` : 
+               '';
+             
+             // Add note if we used fallback time calculation
+             if (!rawLandingTime || rawLandingTime < 946684800) {
+               weatherTimeNote = weatherTimeNote ? 
+                 `${weatherTimeNote}\n⚠️ Landing time estimated (original data invalid)` :
+                 `⚠️ Landing time estimated (original data invalid)`;
+             }
+            // Extract weather data for landing time
+            const forecast = landingWeatherData.hourly;
+            
+                         // Helper function to safely convert to number
+             const toNumber = (value: string | number | null | undefined): number | null => {
+               if (typeof value === 'number') return value;
+               if (typeof value === 'string') {
+                 const num = parseFloat(value);
+                 return isNaN(num) ? null : num;
+               }
+               return null;
+             };
+             
+             // Extract surface weather
+             const surfaceWeather: WeatherForecast = {
+               temperature: toNumber(forecast.temperature_2m?.[timeIndex]),
+               humidity: toNumber(forecast.relativehumidity_2m?.[timeIndex]),
+               dewpoint: toNumber(forecast.dewpoint_2m?.[timeIndex]),
+               apparentTemperature: toNumber(forecast.apparent_temperature?.[timeIndex]),
+               precipitation: toNumber(forecast.precipitation?.[timeIndex]),
+               rain: toNumber(forecast.rain?.[timeIndex]),
+               snowfall: toNumber(forecast.snowfall?.[timeIndex]),
+               cloudcover: toNumber(forecast.cloudcover?.[timeIndex]),
+               cloudcoverLow: toNumber(forecast.cloudcover_low?.[timeIndex]),
+               cloudcoverMid: toNumber(forecast.cloudcover_mid?.[timeIndex]),
+               cloudcoverHigh: toNumber(forecast.cloudcover_high?.[timeIndex]),
+               visibility: toNumber(forecast.visibility?.[timeIndex]),
+               windSpeed10m: toNumber(forecast.windspeed_10m?.[timeIndex]),
+               windDirection10m: toNumber(forecast.winddirection_10m?.[timeIndex]),
+               windGusts10m: toNumber(forecast.windgusts_10m?.[timeIndex]),
+               pressure: toNumber(forecast.pressure_msl?.[timeIndex]),
+               surfacePressure: toNumber(forecast.surface_pressure?.[timeIndex]),
+               cape: toNumber(forecast.cape?.[timeIndex]),
+               cin: toNumber(forecast.cin?.[timeIndex]),
+               description: weatherTimeNote // Include time difference note if significant
+             };
+             
+             // Extract wind levels (pressure levels) with proper type conversion
+             const groundSpeed = toNumber(forecast[`windspeed_1000hPa`]?.[timeIndex]);
+             const groundDirection = toNumber(forecast[`winddirection_1000hPa`]?.[timeIndex]);
+             const ground = (groundSpeed !== null && groundDirection !== null) ? {
+               speed: groundSpeed,
+               direction: groundDirection
+             } : undefined;
+             
+             const midSpeed = toNumber(forecast[`windspeed_500hPa`]?.[timeIndex]);
+             const midDirection = toNumber(forecast[`winddirection_500hPa`]?.[timeIndex]);
+             const mid = (midSpeed !== null && midDirection !== null) ? {
+               speed: midSpeed,
+               direction: midDirection
+             } : undefined;
+             
+             const jetSpeed = toNumber(forecast[`windspeed_250hPa`]?.[timeIndex]);
+             const jetDirection = toNumber(forecast[`winddirection_250hPa`]?.[timeIndex]);
+             const jet = (jetSpeed !== null && jetDirection !== null) ? {
+               speed: jetSpeed,
+               direction: jetDirection
+             } : undefined;
+            
+            const comprehensiveLandingWeather: ComprehensiveWeather = {
+              forecast: surfaceWeather
+            };
+            
+                         // Add wind levels if available
+             if (ground) {
+               comprehensiveLandingWeather.ground = ground;
+             }
+             if (mid) {
+               comprehensiveLandingWeather.mid = mid;
+             }
+             if (jet) {
+               comprehensiveLandingWeather.jet = jet;
+             }
+            
+            setLandingWeather(comprehensiveLandingWeather);
+          } else {
+            console.warn('No weather data found for landing time');
+            setLandingWeather(null);
+          }
+        } else {
+          console.warn('No weather data returned from API');
+          // Fallback to launch weather if available
+          if (launchWeather) {
+            console.log('Using launch weather as fallback for landing weather');
+            const fallbackWeather: ComprehensiveWeather = {
+              ...launchWeather,
+              forecast: launchWeather.forecast ? {
+                ...launchWeather.forecast,
+                description: `⚠️ Using launch weather as fallback (API unavailable)`
+              } : launchWeather.forecast
+            };
+            setLandingWeather(fallbackWeather);
+          } else {
+            setLandingWeather(null);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch landing weather:', error);
+        // Fallback to launch weather if available
+        if (launchWeather) {
+          console.log('Using launch weather as fallback after API error');
+          const fallbackWeather: ComprehensiveWeather = {
+            ...launchWeather,
+            forecast: launchWeather.forecast ? {
+              ...launchWeather.forecast,
+              description: `⚠️ Using launch weather as fallback (API error)`
+            } : launchWeather.forecast
+          };
+          setLandingWeather(fallbackWeather);
+        } else {
+          setLandingWeather(null);
+        }
+      } finally {
+        setIsLoadingLandingWeather(false);
+      }
+    };
+    
+    fetchLandingWeather();
+  }, [prediction, launchWeather]);
 
   // Creates a custom Leaflet icon using an SVG string
   const createIcon = (iconSvg: string): L.DivIcon => {
@@ -358,8 +565,15 @@ const LeafletVisualization: React.FC<VisualizationProps> = ({
           {formatWeather(launchWeather ?? null, unitSystem)}
         </div>
         <div className="flex-1">
-          <div className="font-semibold text-blue-300 mb-1">Landing Weather (est.)</div>
-          {formatWeather(landingWeather ?? null, unitSystem)}
+          <div className="font-semibold text-blue-300 mb-1">Landing Weather</div>
+          {isLoadingLandingWeather ? (
+            <div className="flex items-center gap-2 text-gray-400">
+              <div className="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
+              Loading forecast...
+            </div>
+          ) : (
+            formatWeather(landingWeather ?? null, unitSystem)
+          )}
         </div>
       </div>
       <style>{`

@@ -8,6 +8,7 @@ export const usePrediction = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [launchWeather, setLaunchWeather] = useState<ComprehensiveWeather | null>(null);
+  const [weatherData, setWeatherData] = useState<any>(null);
 
   const runPrediction = useCallback(async (params: LaunchParams) => {
     setIsLoading(true);
@@ -16,18 +17,19 @@ export const usePrediction = () => {
     setLaunchWeather(null);
 
     try {
-      const weatherData = await fetchWeatherData(params.lat, params.lon, params.launchTime);
-      if (!weatherData) {
+      const fetchedWeatherData = await fetchWeatherData(params.lat, params.lon, params.launchTime);
+      if (!fetchedWeatherData) {
         throw new Error("Could not fetch weather data. The API might be temporarily unavailable.");
       }
+      setWeatherData(fetchedWeatherData);
       
       // Get detailed forecast for launch time
-      const launchHourIndex = weatherData.hourly.time.findIndex(t => new Date(t) >= new Date(params.launchTime));
+      const launchHourIndex = fetchedWeatherData.hourly.time.findIndex((t: string) => new Date(t) >= new Date(params.launchTime));
       
       if (launchHourIndex !== -1) {
         const getWeatherPoint = (level: number): WeatherPoint | null => {
-            const speed = weatherData.hourly[`windspeed_${level}hPa`]?.[launchHourIndex];
-            const direction = weatherData.hourly[`winddirection_${level}hPa`]?.[launchHourIndex];
+            const speed = fetchedWeatherData.hourly[`windspeed_${level}hPa`]?.[launchHourIndex];
+            const direction = fetchedWeatherData.hourly[`winddirection_${level}hPa`]?.[launchHourIndex];
             if (typeof speed === 'number' && typeof direction === 'number') {
                 return { speed, direction };
             }
@@ -40,7 +42,7 @@ export const usePrediction = () => {
 
         // Extract comprehensive forecast data
         const getForecastValue = (key: string): number | null => {
-          const value = weatherData.hourly[key]?.[launchHourIndex];
+          const value = fetchedWeatherData.hourly[key]?.[launchHourIndex];
           return typeof value === 'number' && !isNaN(value) ? value : null;
         };
 
@@ -100,7 +102,7 @@ export const usePrediction = () => {
         setError("No weather forecast available for the selected launch time. Please try a different time.");
       }
 
-      const result = runPredictionSimulation(params, weatherData);
+      const result = runPredictionSimulation(params, fetchedWeatherData);
       setPrediction(result);
     } catch (e: unknown) {
       if (e instanceof Error) {
@@ -114,7 +116,7 @@ export const usePrediction = () => {
     }
   }, []);
 
-  return { prediction, isLoading, error, runPrediction, launchWeather };
+  return { prediction, isLoading, error, runPrediction, launchWeather, weatherData };
 };
 
 // Helper function to generate weather description

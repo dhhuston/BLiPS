@@ -1,8 +1,9 @@
-import React, { useCallback, useState, RefObject } from 'react';
+import React, { useCallback, useState, RefObject, useEffect } from 'react';
 import { LaunchParams, CalculatorParams, UnitSystem, CalculationBreakdown, LaunchWeather } from '../types';
 import ImprovedMapSelector from './ImprovedMapSelector';
 import { LoadingSpinner, CalculatorIcon, ExternalLinkIcon, WindArrowIcon } from './icons/IconComponents';
 import { calculateFlightPerformance } from '../services/predictionService';
+import { getGroundElevation, formatElevation } from '../services/elevationService';
 import CalculationDetailsModal from './CalculationDetailsModal';
 import {
   metersToFeet, feetToMeters,
@@ -54,8 +55,29 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
   const [isCalcModalOpen, setIsCalcModalOpen] = useState(false);
   const [calcError, setCalcError] = useState<string | null>(null);
   const [aprsCallsign, setAprsCallsign] = useState('');
+  const [isLoadingElevation, setIsLoadingElevation] = useState(false);
+  const [groundElevation, setGroundElevation] = useState<number | null>(null);
 
   const isImperial = unitSystem === 'imperial';
+
+  // Initialize ground elevation on component mount
+  useEffect(() => {
+    const initializeElevation = async () => {
+      if (params.lat && params.lon) {
+        setIsLoadingElevation(true);
+        try {
+          const elevation = await getGroundElevation(params.lat, params.lon);
+          setGroundElevation(elevation);
+        } catch (error) {
+          console.warn('Failed to initialize ground elevation:', error);
+        } finally {
+          setIsLoadingElevation(false);
+        }
+      }
+    };
+
+    initializeElevation();
+  }, []); // Only run once on mount
 
   const handleParamChange = (field: keyof Omit<LaunchParams, 'launchTime' | 'lat' | 'lon'>, value: string) => {
     const numericValue = parseFloat(value) || 0;
@@ -77,8 +99,20 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
     setCalculatorParams(prev => ({ ...prev, [field]: metricValue }));
   };
 
-  const handleMapChange = useCallback((lat: number, lon: number) => {
+  const handleMapChange = useCallback(async (lat: number, lon: number) => {
     setParams(prev => ({ ...prev, lat, lon }));
+    
+    // Fetch ground elevation for the selected location
+    setIsLoadingElevation(true);
+    try {
+      const elevation = await getGroundElevation(lat, lon);
+      setGroundElevation(elevation);
+      setParams(prev => ({ ...prev, launchAltitude: elevation }));
+    } catch (error) {
+      console.warn('Failed to fetch ground elevation:', error);
+    } finally {
+      setIsLoadingElevation(false);
+    }
   }, [setParams]);
   
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,8 +190,31 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Launch Altitude with ground elevation indicator */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400">
+              Launch Alt. ({lUnit})
+              {groundElevation && (
+                <span className="ml-2 text-xs text-green-400">
+                  Ground: {formatElevation(groundElevation, isImperial)}
+                </span>
+              )}
+              {isLoadingElevation && (
+                <span className="ml-2 text-xs text-yellow-400">
+                  Loading elevation...
+                </span>
+              )}
+            </label>
+            <input 
+              type="number" 
+              value={isImperial ? metersToFeet(params.launchAltitude).toFixed(0) : params.launchAltitude.toString()}
+              onChange={e => handleParamChange('launchAltitude', e.target.value)}
+              className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
+            />
+          </div>
+          
+          {/* Other parameters */}
           {([
-            {label: `Launch Alt. (${lUnit})`, field: 'launchAltitude', value: isImperial ? metersToFeet(params.launchAltitude).toFixed(0) : params.launchAltitude.toString()},
             {label: `Burst Alt. (${lUnit})`, field: 'burstAltitude', value: isImperial ? metersToFeet(params.burstAltitude).toFixed(0) : params.burstAltitude.toString()},
             {label: `Ascent Rate (${sUnit})`, field: 'ascentRate', value: isImperial ? msToFts(params.ascentRate).toFixed(2) : params.ascentRate.toString()},
             {label: `Descent Rate (${sUnit})`, field: 'descentRate', value: isImperial ? msToFts(params.descentRate).toFixed(2) : params.descentRate.toString()},
@@ -173,9 +230,9 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
           <div className="bg-gray-900/50 border border-gray-700 p-4 rounded-lg mb-4">
             <h4 className="font-semibold text-gray-300 mb-3 text-center">Launch Time Weather Forecast</h4>
             <div className="space-y-2">
-              <ForecastRow label="Ground (~1000hPa)" weather={launchWeather.ground} unitSystem={unitSystem} />
-              <ForecastRow label="Mid (~500hPa)" weather={launchWeather.mid} unitSystem={unitSystem} />
-              <ForecastRow label="Jet (~250hPa)" weather={launchWeather.jet} unitSystem={unitSystem} />
+              {launchWeather.ground && <ForecastRow label="Ground (~1000hPa)" weather={launchWeather.ground} unitSystem={unitSystem} />}
+              {launchWeather.mid && <ForecastRow label="Mid (~500hPa)" weather={launchWeather.mid} unitSystem={unitSystem} />}
+              {launchWeather.jet && <ForecastRow label="Jet (~250hPa)" weather={launchWeather.jet} unitSystem={unitSystem} />}
             </div>
           </div>
         )}

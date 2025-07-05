@@ -23,8 +23,8 @@ const getDefaultLaunchTime = () => {
 
 const App: React.FC = () => {
   const [launchParams, setLaunchParams] = useState<LaunchParams>({
-    lat: 40.7128,
-    lon: -74.0060,
+    lat: 40.4123056,
+    lon: -86.9368889,
     launchTime: getDefaultLaunchTime(),
     launchAltitude: 100,
     ascentRate: 5,
@@ -43,7 +43,7 @@ const App: React.FC = () => {
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const [showLiabilityModal, setShowLiabilityModal] = useState(false);
   
-  const { prediction, isLoading, error, runPrediction, launchWeather } = usePrediction();
+  const { prediction, isLoading, error, runPrediction, launchWeather, weatherData } = usePrediction();
   const [launchARTCC, setLaunchARTCC] = useState<string | null>(null);
   const [landingARTCC, setLandingARTCC] = useState<string | null>(null);
 
@@ -138,10 +138,11 @@ const App: React.FC = () => {
             unitSystem={unitSystem}
             launchWeather={launchWeather}
             prediction={prediction}
-            error={error}
-            launchARTCC={launchARTCC}
-            landingARTCC={landingARTCC}
-          />
+                      error={error}
+          launchARTCC={launchARTCC}
+          landingARTCC={landingARTCC}
+          weatherData={weatherData}
+        />
         </div>
       </main>
       <footer className="text-center p-4 text-gray-500 text-sm">
