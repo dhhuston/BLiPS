@@ -19,7 +19,7 @@ jobs:
             target: x86_64-pc-windows-msvc
           - platform: macos-latest
             target: aarch64-apple-darwin
-    runs-on: ${{ matrix.platform == 'ubuntu-22.04' && 'ubuntu-22.04' || matrix.platform }}
+    runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

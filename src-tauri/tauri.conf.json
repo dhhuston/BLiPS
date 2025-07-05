@@ -1,11 +1,11 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "identifier": "com.blips.app",
+  "identifier": "com.blips.desktop",
   "productName": "BLiPS",
   "version": "0.9.0",
   "build": {
-    "beforeBuildCommand": "",
-    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../dist"
   },

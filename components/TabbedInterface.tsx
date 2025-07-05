@@ -299,16 +299,6 @@ const SettingsTab: React.FC = () => {
     <div className="max-w-xl mx-auto bg-gray-800 rounded-lg p-6 border border-gray-700 mt-6">
       <h2 className="text-2xl font-semibold mb-4 text-cyan-300">Settings</h2>
       <div className="mb-4">
-        <label className="block text-gray-300 font-medium mb-1">APRS.fi API Key</label>
-        <input
-          type="text"
-          value={apiKey}
-          onChange={e => setApiKey(e.target.value)}
-          className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring focus:border-cyan-500"
-          placeholder="Enter your aprs.fi API key"
-        />
-      </div>
-      <div className="mb-4">
         <label className="block text-gray-300 font-medium mb-1">APRS Callsign</label>
         <input
           type="text"
@@ -319,7 +309,35 @@ const SettingsTab: React.FC = () => {
         />
       </div>
       <div className="mb-4">
+        <label className="block text-gray-300 font-medium mb-1">APRS.fi API Key</label>
+        <div className="text-xs text-gray-400 mb-1">
+          <b>How to get your APRS.fi API key:</b>
+          <ol className="list-decimal list-inside ml-4">
+            <li>Go to <a href="https://aprs.fi/page/api" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">aprs.fi API page</a>.</li>
+            <li>Sign in or create a free account.</li>
+            <li>Request a new API key for your application.</li>
+            <li>Copy the API key and paste it below.</li>
+          </ol>
+        </div>
+        <input
+          type="text"
+          value={apiKey}
+          onChange={e => setApiKey(e.target.value)}
+          className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring focus:border-cyan-500"
+          placeholder="Enter your aprs.fi API key"
+        />
+      </div>
+      <div className="mb-4">
         <label className="block text-gray-300 font-medium mb-1">Cesium Ion Access Token</label>
+        <div className="text-xs text-gray-400 mb-1">
+          <b>How to get your Cesium Ion Access Token:</b>
+          <ol className="list-decimal list-inside ml-4">
+            <li>Go to <a href="https://cesium.com/ion/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">Cesium Ion Tokens page</a>.</li>
+            <li>Sign in or create a free account.</li>
+            <li>Create a new access token for your application.</li>
+            <li>Copy the token and paste it below.</li>
+          </ol>
+        </div>
         <input
           type="text"
           value={cesiumToken}
@@ -336,24 +354,9 @@ const SettingsTab: React.FC = () => {
       </button>
       {saved && <span className="ml-3 text-green-400">Saved!</span>}
       <div className="bg-gray-900 p-4 rounded border border-gray-700 mt-4">
-        <h3 className="text-lg font-semibold text-cyan-200 mb-2">How to get your aprs.fi API key</h3>
-        <ol className="list-decimal list-inside text-gray-300 space-y-1">
-          <li>Go to <a href="https://aprs.fi/page/api" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">aprs.fi API page</a>.</li>
-          <li>Sign in or create a free account.</li>
-          <li>Request a new API key for your application.</li>
-          <li>Copy the API key and paste it above.</li>
-        </ol>
-        <p className="mt-2 text-yellow-300 text-xs">Never share your API key publicly or commit it to version control.</p>
-      </div>
-      <div className="bg-gray-900 p-4 rounded border border-gray-700 mt-4">
-        <h3 className="text-lg font-semibold text-cyan-200 mb-2">How to get your Cesium Ion Access Token</h3>
-        <ol className="list-decimal list-inside text-gray-300 space-y-1">
-          <li>Go to <a href="https://cesium.com/ion/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">Cesium Ion Tokens page</a>.</li>
-          <li>Sign in or create a free account.</li>
-          <li>Create a new access token for your application.</li>
-          <li>Copy the token and paste it above.</li>
-        </ol>
-        <p className="mt-2 text-yellow-300 text-xs">Never share your Cesium token publicly or commit it to version control.</p>
+        <p className="text-yellow-300 text-xs">
+          Never share your API keys or access tokens publicly or commit them to version control.
+        </p>
       </div>
     </div>
   );
