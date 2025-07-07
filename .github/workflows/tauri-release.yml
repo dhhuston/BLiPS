@@ -42,6 +42,14 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      - name: Setup macOS environment
+        if: matrix.platform == 'macos-latest'
+        run: |
+          # Ensure we have the latest Xcode command line tools
+          xcode-select --install || true
+          # Set up environment for DMG creation
+          export MACOSX_DEPLOYMENT_TARGET=10.15
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -66,9 +74,13 @@ jobs:
         run: npm install -g @tauri-apps/cli@latest
 
       - name: Build Tauri app
-        run: npx tauri build --target ${{ matrix.target }}
+        run: |
+          echo "Building for target: ${{ matrix.target }}"
+          echo "Platform: ${{ matrix.platform }}"
+          npx tauri build --target ${{ matrix.target }} --verbose
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MACOSX_DEPLOYMENT_TARGET: "10.15"
 
       - name: List bundle output (debug)
         run: |

@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "com.blips.balloon-prediction",
   "productName": "BLiPS",
-  "version": "0.9.10",
+  "version": "0.9.11",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
@@ -42,6 +42,15 @@
       "developmentTeam": "3335S9Y6F5",
       "frameworks": [],
       "minimumSystemVersion": "13.0"
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "codeSigningIdentity": null,
+      "hardenedRuntime": false,
+      "entitlements": null,
+      "exceptionDomain": null,
+      "providerShortName": null,
+      "signingOptions": null
     }
   },
   "plugins": {
