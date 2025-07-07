@@ -1,12 +1,13 @@
 [package]
-name = "app"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+name = "blips"
+version = "0.9.0"
+description = "Balloon Launch Prediction Software"
+authors = ["BLiPS Team"]
+license = "MIT"
+repository = "https://github.com/dhhuston/blips"
+default-run = "blips"
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.60"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -15,11 +16,24 @@ name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.3.0", features = [] }
+tauri-build = { version = "2.0", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.6.2", features = [] }
-tauri-plugin-log = "2"
+tauri = { version = "2.0", features = ["macos-private-api"] }
+tauri-plugin-geolocation = "2.0"
+tauri-plugin-http = "2.0"
+tauri-plugin-shell = "2.0"
+
+# Temporarily disable logging plugin for all platforms to fix iOS crash
+# [target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
+# tauri-plugin-log = "2"
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
+# If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `build` modes.
+# DO NOT REMOVE!!
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

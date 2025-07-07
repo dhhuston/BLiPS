@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { PredictionResult } from '../types';
+import { PredictionResult } from '../types/index';
 import { LaunchIcon, BurstIcon, LandingIcon, svgToDataURL } from './icons/IconComponents';
 import * as Cesium from 'cesium';
 

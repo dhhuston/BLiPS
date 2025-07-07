@@ -1,7 +1,6 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import LeafletVisualization from './LeafletVisualization';
-import { PredictionResult, LaunchWeather } from '../types';
+import { PredictionResult, LaunchWeather } from '../types/index';
 import { vi, describe, it, expect } from 'vitest';
 
 // Mock react-leaflet and leaflet to avoid map rendering issues

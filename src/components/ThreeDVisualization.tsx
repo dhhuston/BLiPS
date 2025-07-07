@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { PredictionResult, UnitSystem } from '../types';
-import { metersToFeet } from '../constants';
+import { PredictionResult, UnitSystem } from '../types/index';
+import { metersToFeet } from '../constants/index';
 
 interface ThreeDVisualizationProps {
   prediction: PredictionResult | null;
@@ -40,7 +40,7 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({ prediction, u
     // Dynamically import Three.js to avoid SSR issues
     const initThreeJS = async () => {
       const THREE = await import('three');
-      const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls');
+      const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
 
       // Clean up previous scene
       if (sceneRef.current) {
@@ -53,6 +53,7 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({ prediction, u
       sceneRef.current = scene;
 
       // Camera setup
+      if (!mountRef.current) return;
       const camera = new THREE.PerspectiveCamera(
         75,
         mountRef.current.clientWidth / mountRef.current.clientHeight,
@@ -63,6 +64,7 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({ prediction, u
 
       // Renderer setup
       const renderer = new THREE.WebGLRenderer({ antialias: true });
+      if (!mountRef.current) return;
       renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -106,7 +108,7 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({ prediction, u
       // Flight trajectory
       const trajectoryPoints: any[] = [];
       const isImperial = unitSystem === 'imperial';
-      prediction.path.forEach((point, index) => {
+      prediction.path.forEach((point) => {
         // Scale coordinates for better visualization
         const x = point.lon * 1000; // Scale longitude
         const z = point.lat * 1000; // Scale latitude

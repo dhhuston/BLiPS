@@ -118,26 +118,36 @@ BLiPS includes a settings panel for managing API keys and configuration:
 
 ```
 blips/
-├── components/          # React components
-│   ├── Header.tsx      # Application header
-│   ├── MissionPlanner.tsx # Mission planning interface
-│   ├── Visualization.tsx  # Main visualization component
-│   ├── GlobeVisualization.tsx # 3D Cesium globe view
-│   ├── LeafletVisualization.tsx # 2D map view
-│   ├── SafetyInfo.tsx     # Safety analysis display
-│   └── icons/          # Icon components
-├── services/           # API and service layer
-│   ├── predictionService.ts # Flight prediction logic
-│   ├── weatherService.ts    # Weather data integration
-│   ├── atcService.ts        # ATC zone identification
-│   └── aprsService.ts       # APRS tracking service
-├── hooks/              # Custom React hooks
-│   └── usePrediction.ts     # Prediction hook
-├── types.ts            # TypeScript type definitions
-├── constants.ts        # Application constants
-├── src-tauri/          # Tauri desktop app configuration
-└── App.tsx            # Main application component
+├── src/
+│   ├── components/          # React components (UI, visualization, panels)
+│   ├── services/            # API/data logic (all API calls centralized here)
+│   ├── hooks/               # Custom React hooks
+│   ├── constants/           # Application-wide constants (index.ts)
+│   ├── types/               # TypeScript type definitions (index.ts)
+│   └── assets/              # Static assets (images, icons, etc.)
+├── src-tauri/               # Tauri desktop app configuration
+├── public/                  # Static public files
+├── package.json             # Project metadata and scripts
+├── README.md                # Project documentation
+└── ...
 ```
+
+### Centralized Constants & Types
+- **All constants** are in `src/constants/index.ts` (physics, conversion, simulation, etc.)
+- **All types/interfaces** are in `src/types/index.ts` (data models, API responses, etc.)
+- **All API/data logic** is in `src/services/` (no direct API calls in components)
+
+### Service Layer Pattern
+- Use the service classes in `src/services/` for all data fetching, prediction, and business logic.
+- Components should only import from `services/`, `constants/`, and `types/`.
+
+### Code Documentation & Comments
+- **Complex logic** (e.g., flight simulation, weather analysis) is thoroughly commented in the relevant service files.
+- Look for `/** ... */` JSDoc comments and inline explanations in:
+  - `src/services/predictionService.ts`
+  - `src/services/dummyFlightSimulator.ts`
+  - `src/services/liveAnalysisService.ts`
+- All exported functions and classes are documented for clarity.
 
 ## 🔧 Development
 
@@ -148,6 +158,8 @@ blips/
 - `npm run preview` - Preview production build
 - `npm run tauri dev` - Start Tauri development
 - `npm run tauri build` - Build Tauri desktop app
+- `npm run lint` - Run ESLint
+- `npm run type-check` - Run TypeScript type checking
 
 ### Code Style
 
@@ -155,6 +167,7 @@ blips/
 - React functional components with hooks
 - Tailwind CSS for styling
 - ESLint for code quality
+- Centralized constants/types/services
 
 ## 🤝 Contributing
 
@@ -164,7 +177,7 @@ We welcome contributions! Please follow these steps:
 2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
 3. **Commit your changes**: `git commit -m 'Add amazing feature'`
 4. **Push to the branch**: `git push origin feature/amazing-feature`
-5. **Open a Pull Request**
+5. **Open a Pull Request`
 
 ### Development Guidelines
 
@@ -172,6 +185,7 @@ We welcome contributions! Please follow these steps:
 - Write meaningful commit messages
 - Add tests for new features
 - Update documentation as needed
+- Add comments to complex logic and new algorithms
 
 ## 📄 License
 
@@ -194,8 +208,6 @@ If you encounter any issues or have questions:
 - [ ] Enhanced weather modeling
 - [ ] Real-time flight tracking
 - [ ] Mobile application
-- [ ] Advanced safety algorithms
-- [ ] Integration with aviation databases
 
 ## API Keys
 

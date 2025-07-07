@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { PredictionResult, UnitSystem } from '../types';
-import { metersToFeet } from '../constants';
+import { PredictionResult, UnitSystem } from '../types/index';
+import { metersToFeet } from '../constants/index';
 import { ExternalLinkIcon } from './icons/IconComponents';
 
 interface SafetyInfoProps {

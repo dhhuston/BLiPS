@@ -1,5 +1,3 @@
-
-
 export const EARTH_RADIUS_M = 6371000;
 export const TIME_STEP_S = 60;
 
@@ -11,6 +9,17 @@ export const GAS_DENSITY_HYDROGEN_KGM3 = 0.0899;
 export const BALLOON_DRAG_COEFFICIENT = 0.3;
 export const AVG_STRATOSPHERE_TEMP_K = 220; // ~ -53 C
 export const SEA_LEVEL_TEMP_K = 288.15; // 15 C
+
+// Flight simulation constants
+export const GROUND_WIND_SPEED_MS = 3; // m/s ground wind
+export const GROUND_WIND_DIRECTION_DEG = 180; // degrees (southward drift)
+export const JET_STREAM_ALTITUDE_M = 10000; // Jet stream at ~30,000ft
+export const MAX_REASONABLE_DEVIATION_M = 50000; // 50km - balloons can drift far from predictions
+export const MAX_ALTITUDE_DEVIATION_M = 5000; // 5km - altitude predictions can vary significantly
+
+// Balloon burst constants
+export const BURST_RADIUS_COEFFICIENT = 0.479;
+export const BURST_RADIUS_EXPONENT = 0.3115;
 
 export const PRESSURE_LEVELS = [
   1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500, 450, 400,

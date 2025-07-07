@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactApexChart from 'react-apexcharts';
-import { FlightPoint, UnitSystem } from '../types';
-import { metersToFeet } from '../constants';
+import { FlightPoint, UnitSystem } from '../types/index';
+import { metersToFeet } from '../constants/index';
 
 interface AltitudeChartProps {
   path: FlightPoint[];

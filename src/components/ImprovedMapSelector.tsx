@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, RefObject } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, LayersControl } from 'react-leaflet';
 import L from 'leaflet';
+import GeocodingService from '../services/geocodingService';
 
 // Fix for default icon path issue with webpack
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -113,14 +114,11 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
     
     setIsSearching(true);
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`
-      );
-      const data = await response.json();
+      const geocodingService = GeocodingService.create();
+      const coordinates = await geocodingService.getCoordinates(searchQuery);
       
-      if (data.length > 0) {
-        const { lat, lon } = data[0];
-        onMapChange(parseFloat(lat), parseFloat(lon));
+      if (coordinates) {
+        onMapChange(coordinates.lat, coordinates.lon);
         setSearchQuery('');
       }
     } catch (error) {
@@ -129,8 +127,6 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
       setIsSearching(false);
     }
   };
-
-
 
   // Update coordinate input when props change
   useEffect(() => {
@@ -203,14 +199,14 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
         </div>
       </div>
 
-      {/* Map */}
-      <div ref={mapDivRef} className="h-64 w-full rounded-lg overflow-hidden border border-gray-600">
+      {/* Interactive Map */}
+      <div ref={mapDivRef} className="h-64 sm:h-80 md:h-96 w-full rounded-lg overflow-hidden border border-gray-600 shadow-lg">
         <MapContainer 
           center={[lat, lon]} 
           zoom={10} 
           scrollWheelZoom={true} 
+          touchZoom={true}
           style={{ height: '100%', width: '100%' }}
-          zoomControl={true}
           ref={mapContainerRef}
         >
           <LayersControl position="topright">
@@ -226,20 +222,14 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
                 attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
               />
             </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Terrain">
-              <TileLayer
-                url='https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
-                attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
-              />
-            </LayersControl.BaseLayer>
           </LayersControl>
           <MapUpdater lat={lat} lon={lon} onMapChange={onMapChange} />
         </MapContainer>
       </div>
-
-      {/* Current Coordinates Display */}
-      <div className="text-center text-sm text-gray-400">
-        Current: {lat.toFixed(6)}, {lon.toFixed(6)}
+      
+      {/* Coordinate Display */}
+      <div className="text-sm text-gray-400 text-center">
+        Click on the map or drag the marker to set launch coordinates
       </div>
     </div>
   );

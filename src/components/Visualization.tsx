@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PredictionResult, UnitSystem } from '../types';
 import LeafletVisualization from './LeafletVisualization';

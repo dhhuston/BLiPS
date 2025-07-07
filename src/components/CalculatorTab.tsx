@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { CalculatorParams, UnitSystem, LaunchParams, GoalCalculationResult } from '../types';
+import { CalculatorParams, UnitSystem, LaunchParams, GoalCalculationResult } from '../types/index';
 import { calculateFlightPerformance, calculateGoalOptions } from '../services/predictionService';
 import {
   metersToFeet, feetToMeters,
   msToFts,
   gToOz, ozToG
-} from '../constants';
+} from '../constants/index';
 
 interface CalculatorTabProps {
   calculatorParams: CalculatorParams;

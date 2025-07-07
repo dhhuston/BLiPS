@@ -10,10 +10,16 @@ import {
   BALLOON_DRAG_COEFFICIENT,
   AVG_STRATOSPHERE_TEMP_K,
   SEA_LEVEL_TEMP_K,
+  BURST_RADIUS_COEFFICIENT,
+  BURST_RADIUS_EXPONENT,
 } from '../constants';
 
-// Standard atmosphere model to estimate pressure from altitude
-// This is a simplified model for interpolation.
+/**
+ * Standard atmosphere model to estimate pressure from altitude.
+ * This is a simplified model for interpolation.
+ * @param alt_m Altitude in meters
+ * @returns Pressure in hPa
+ */
 export const altitudeToPressure = (alt_m: number): number => {
   if (alt_m <= 11000) { // Troposphere
     return 1013.25 * Math.pow(1 - (0.0065 * alt_m) / 288.15, 5.255);
@@ -24,7 +30,11 @@ export const altitudeToPressure = (alt_m: number): number => {
   }
 };
 
-// Inversion of the standard atmosphere model to get altitude from pressure
+/**
+ * Inversion of the standard atmosphere model to get altitude from pressure.
+ * @param pressure_hPa Pressure in hPa
+ * @returns Altitude in meters
+ */
 const pressureToAltitude = (pressure_hPa: number): number => {
   if (pressure_hPa > 226.32) { // Troposphere (up to 11km)
     return (288.15 / 0.0065) * (1 - Math.pow(pressure_hPa / 1013.25, 1 / 5.255));
@@ -35,7 +45,15 @@ const pressureToAltitude = (pressure_hPa: number): number => {
   }
 };
 
-
+/**
+ * Interpolates wind speed and direction at a given altitude and time.
+ * Uses pressure levels and weather data to estimate wind at the balloon's position.
+ * @param altitude Altitude in meters
+ * @param currentTime Time in seconds since launch
+ * @param weatherData WeatherData object
+ * @param launchTime ISO string of launch time
+ * @returns { speed: number, direction: number }
+ */
 const interpolateWind = (altitude: number, currentTime: number, weatherData: WeatherData, launchTime: string): { speed: number; direction: number } => {
   const currentPressure = altitudeToPressure(altitude);
   
@@ -94,6 +112,14 @@ const interpolateWind = (altitude: number, currentTime: number, weatherData: Wea
   return { speed, direction };
 };
 
+/**
+ * Calculates the great-circle distance between two points using the Haversine formula.
+ * @param lat1 Latitude of point 1
+ * @param lon1 Longitude of point 1
+ * @param lat2 Latitude of point 2
+ * @param lon2 Longitude of point 2
+ * @returns Distance in meters
+ */
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   const toRad = (deg: number) => deg * Math.PI / 180;
   const R = 6371e3; // meters
@@ -106,6 +132,14 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * c;
 }
 
+/**
+ * Simulates the full flight trajectory (ascent and descent) for a balloon launch.
+ * Steps through the flight in TIME_STEP_S increments, updating position and altitude
+ * using wind interpolation and physics constants. Returns the full path and summary.
+ * @param params Launch parameters
+ * @param weatherData Weather data for the launch
+ * @returns PredictionResult with full path, launch/burst/landing points, and stats
+ */
 export const runPredictionSimulation = (params: LaunchParams, weatherData: WeatherData): PredictionResult => {
   const path: FlightPoint[] = [];
   let currentTime = 0;
@@ -194,6 +228,16 @@ export const runPredictionSimulation = (params: LaunchParams, weatherData: Weath
   };
 };
 
+/**
+ * Calculates the expected burst radius for a balloon based on its weight.
+ * Uses empirical formula and constants from constants.ts.
+ * @param balloonWeight Balloon weight in grams
+ * @returns Burst radius in meters
+ */
+function calculateBurstRadius(balloonWeight: number): number {
+  return BURST_RADIUS_COEFFICIENT * Math.pow(balloonWeight, BURST_RADIUS_EXPONENT);
+}
+
 export const calculateFlightPerformance = (
   params: CalculatorParams,
   launchAltitude: number
@@ -268,7 +312,7 @@ export const calculateFlightPerformance = (
 
   // 5. Calculate Burst Altitude (m)
   // 5a. Empirical formula for burst radius from balloon weight
-  const burstRadiusM = 0.479 * Math.pow(balloonWeight, 0.3115);
+      const burstRadiusM = BURST_RADIUS_COEFFICIENT * Math.pow(balloonWeight, BURST_RADIUS_EXPONENT);
   const burstVolumeM3 = (4 / 3) * Math.PI * Math.pow(burstRadiusM, 3);
   steps.push({
       name: "Burst Radius (Empirical)",
@@ -336,7 +380,7 @@ export const calculateGoalOptions = (
   }
   
   // Calculate burst characteristics for this balloon weight
-  const burstRadius = 0.479 * Math.pow(balloonWeight, 0.3115);
+      const burstRadius = BURST_RADIUS_COEFFICIENT * Math.pow(balloonWeight, BURST_RADIUS_EXPONENT);
   const burstVolume = (4 / 3) * Math.PI * Math.pow(burstRadius, 3);
   
   // Calculate pressure requirements

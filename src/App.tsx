@@ -26,7 +26,7 @@ const App: React.FC = () => {
     lat: 40.4123056,
     lon: -86.9368889,
     launchTime: getDefaultLaunchTime(),
-    launchAltitude: 100,
+    launchAltitude: 204,
     ascentRate: 5,
     burstAltitude: 30000,
     descentRate: 6,
@@ -126,7 +126,7 @@ const App: React.FC = () => {
         onLoad={handleLoadConfig}
         onLiabilityClick={() => setShowLiabilityModal(true)}
       />
-      <main className="p-4 lg:p-8">
+      <main className="p-2 sm:p-4 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <TabbedInterface
             launchParams={launchParams}
@@ -138,18 +138,18 @@ const App: React.FC = () => {
             unitSystem={unitSystem}
             launchWeather={launchWeather}
             prediction={prediction}
-                      error={error}
-          launchARTCC={launchARTCC}
-          landingARTCC={landingARTCC}
-          weatherData={weatherData}
-        />
+            error={error}
+            launchARTCC={launchARTCC}
+            landingARTCC={landingARTCC}
+            weatherData={weatherData}
+          />
         </div>
       </main>
       <footer className="text-center p-4 text-gray-500 text-sm">
         <p>BLiPS &copy; 2024. For simulation purposes only. Not for operational use.</p>
         <button 
           onClick={() => setShowLiabilityModal(true)}
-          className="text-blue-400 hover:text-blue-300 underline mt-1"
+          className="text-blue-400 hover:text-blue-300 underline mt-1 min-h-[44px] px-2"
         >
           Legal & Safety Information
         </button>

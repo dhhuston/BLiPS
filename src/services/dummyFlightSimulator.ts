@@ -1,9 +1,11 @@
 import { APRSPosition, DummyFlightConfig, LaunchParams, PredictionResult, WeatherData } from '../types';
 import { altitudeToPressure } from './predictionService';
-import { PRESSURE_LEVELS } from '../constants';
+import { PRESSURE_LEVELS, GROUND_WIND_SPEED_MS, GROUND_WIND_DIRECTION_DEG, JET_STREAM_ALTITUDE_M, EARTH_RADIUS_M } from '../constants';
 
 /**
- * Generate realistic dummy APRS positions for testing live prediction features
+ * DummyFlightSimulator simulates realistic APRS positions for a balloon flight.
+ * Used for testing live prediction features and UI without real APRS data.
+ * Supports multiple scenarios (early burst, wind shear, etc.) and adds noise.
  */
 export class DummyFlightSimulator {
   private config: DummyFlightConfig;
@@ -25,25 +27,26 @@ export class DummyFlightSimulator {
   }
 
   /**
-   * Generate APRS positions up to current simulation time
+   * Generate APRS positions up to current simulation time.
+   * Simulates beacon intervals, landing, and beacon loss.
    */
   generatePositions(): APRSPosition[] {
     if (!this.config.enabled) return [];
 
     const currentTime = this.config.currentTime;
     const startTime = this.config.startTime;
-    const elapsed = currentTime - startTime;
+
 
     // Clear existing positions and regenerate
     this.positions = [];
 
     // Generate positions at beacon intervals until assumed landing
-    let lastValidTime = startTime;
+
     for (let time = startTime; time <= currentTime; time += this.config.beaconInterval) {
       const position = this.generatePositionAtTime(time);
       if (position) {
         this.positions.push(position);
-        lastValidTime = time;
+
         
         // Check if we should stop beaconing (simulate beacon loss at low altitude)
         if (this.shouldStopBeaconing(position, time)) {
@@ -69,7 +72,8 @@ export class DummyFlightSimulator {
   }
 
   /**
-   * Generate a single position at a specific time
+   * Generate a single position at a specific time.
+   * Handles extrapolation after landing, scenario modifications, and noise.
    */
   private generatePositionAtTime(timestamp: number): APRSPosition | null {
     const flightTime = timestamp - this.config.startTime;
@@ -92,8 +96,8 @@ export class DummyFlightSimulator {
       const extraTime = flightTime - this.originalPrediction.totalTime;
       
       // Balloon continues to drift after landing due to wind
-      const groundWindSpeed = 3; // m/s ground wind
-      const groundWindDir = 180; // degrees (southward drift)
+      const groundWindSpeed = GROUND_WIND_SPEED_MS; // m/s ground wind
+      const groundWindDir = GROUND_WIND_DIRECTION_DEG; // degrees (southward drift)
       
       const driftDistance = groundWindSpeed * extraTime;
       const driftLat = (driftDistance * Math.cos(groundWindDir * Math.PI / 180)) / 111320;
@@ -139,8 +143,8 @@ export class DummyFlightSimulator {
   }
 
   /**
-   * Apply scenario-specific modifications to predicted points
-   * Based on real balloon flight data from amateur radio balloon tracking
+   * Apply scenario-specific modifications to predicted points.
+   * Handles early burst, wind shear, and other real-world effects.
    */
   private applyScenarioModifications(point: any, flightTime: number): any {
     const modified = { ...point };
@@ -156,7 +160,7 @@ export class DummyFlightSimulator {
     const atmosphericFactor = this.calculateAtmosphericEffects(altitudeKm, timeHours);
     
     // Calculate wind drift once for all scenarios
-    const windDrift = this.calculateWindDrift(point, windData, flightTime);
+    const windDrift = this.calculateWindDrift(point, windData);
     
     switch (this.config.scenario) {
       case 'early_burst': {
@@ -192,7 +196,7 @@ export class DummyFlightSimulator {
 
       case 'wind_shear': {
         // Based on Leo Bodnar B-6 flight: severe weather caused 2000m altitude drops
-        const jetStreamAltitude = 10000; // Jet stream at ~30,000ft
+        const jetStreamAltitude = JET_STREAM_ALTITUDE_M; // Jet stream at ~30,000ft
         const proximityToJet = Math.exp(-Math.pow((point.altitude - jetStreamAltitude) / 2500, 2));
         
         // Turbulent weather patterns from real flight data
@@ -277,7 +281,7 @@ export class DummyFlightSimulator {
       case 'standard':
       default: {
         // Even standard flights have variations based on real balloon behavior
-        const standardVariation = this.calculateStandardVariations(point, flightTime);
+        const standardVariation = this.calculateStandardVariations(flightTime);
         modified.lat += standardVariation.latOffset;
         modified.lon += standardVariation.lonOffset;
         modified.altitude += standardVariation.altOffset;
@@ -393,9 +397,10 @@ export class DummyFlightSimulator {
   }
 
   /**
-   * Calculate wind drift based on weather data (same as prediction service)
+   * Calculate wind drift for a given point and wind data.
+   * Used to simulate lateral movement due to wind.
    */
-  private calculateWindDrift(point: any, windData: { speed: number; direction: number }, flightTime: number): { latDrift: number; lonDrift: number } {
+  private calculateWindDrift(point: any, windData: { speed: number; direction: number }): { latDrift: number; lonDrift: number } {
     const TIME_STEP_S = this.config.beaconInterval; // Use beacon interval as time step
     const EARTH_RADIUS_M = 6371000;
     
@@ -436,7 +441,7 @@ export class DummyFlightSimulator {
   /**
    * Calculate standard flight variations
    */
-  private calculateStandardVariations(point: any, flightTime: number): any {
+  private calculateStandardVariations(flightTime: number): any {
     // Small random variations that accumulate over time
     const timeVariation = Math.sin(flightTime / 300) * 0.00002; // 5-minute cycle
     const altitudeVariation = Math.cos(flightTime / 450) * 0.00001; // 7.5-minute cycle
@@ -457,7 +462,8 @@ export class DummyFlightSimulator {
   }
 
   /**
-   * Add realistic noise to position data
+   * Add realistic noise to a simulated point.
+   * Noise is reduced for ground-level positions.
    */
   private addRealisticNoise(point: any, flightTime: number): any {
     const noiseLevel = this.config.noiseLevel;
@@ -544,7 +550,7 @@ export class DummyFlightSimulator {
    */
   private haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const toRad = (deg: number) => deg * Math.PI / 180;
-    const R = 6371000; // Earth radius in meters
+    const R = EARTH_RADIUS_M; // Earth radius in meters
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -570,7 +576,8 @@ export class DummyFlightSimulator {
   }
 
   /**
-   * Determine if beaconing should stop (simulate beacon loss at low altitude)
+   * Simulate beacon loss and assumed landing logic.
+   * Determines when to stop beaconing and when to assume landing.
    */
   private shouldStopBeaconing(position: APRSPosition, currentTime: number): boolean {
     const altitude = position.altitude || 0;

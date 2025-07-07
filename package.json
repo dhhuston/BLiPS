@@ -33,33 +33,34 @@
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "type-check": "tsc --noEmit",
     "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "clean": "rm -rf dist node_modules src-tauri/target",
+    "clean:install": "npm run clean && npm install"
   },
   "dependencies": {
-    "@types/three": "^0.178.0",
     "apexcharts": "^4.0.0",
     "cesium": "^1.131.0",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
     "leaflet": "1.9.4",
-    "node-fetch": "^3.3.2",
     "react": "^19.1.0",
     "react-apexcharts": "1.7.0",
     "react-dom": "^19.1.0",
     "react-leaflet": "5.0.0",
-    "three": "^0.178.0",
-    "vite-plugin-cesium": "^1.2.23"
+    "three": "^0.178.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@tauri-apps/api": "^2.6.0",
     "@tauri-apps/cli": "^2.6.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@types/leaflet": "^1.9.19",
-    "@types/node": "^22.14.0",
     "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@types/three": "^0.178.0",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
     "@vitejs/plugin-react": "^4.3.4",
@@ -67,10 +68,15 @@
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
-    "globals": "^15.14.0",
+    "globals": "^16.3.0",
     "jsdom": "^26.1.0",
-    "typescript": "~5.7.2",
-    "vite": "^6.2.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.2",
+    "vite-plugin-cesium": "^1.2.23",
     "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }

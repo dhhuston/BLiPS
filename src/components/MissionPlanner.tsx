@@ -1,15 +1,14 @@
 import React, { useCallback, useState, RefObject, useEffect } from 'react';
-import { LaunchParams, CalculatorParams, UnitSystem, CalculationBreakdown, LaunchWeather } from '../types';
+import { LaunchParams, CalculatorParams, UnitSystem, CalculationBreakdown, LaunchWeather } from '../types/index';
 import ImprovedMapSelector from './ImprovedMapSelector';
-import { LoadingSpinner, CalculatorIcon, ExternalLinkIcon, WindArrowIcon } from './icons/IconComponents';
-import { calculateFlightPerformance } from '../services/predictionService';
+import { LoadingSpinner, ExternalLinkIcon, WindArrowIcon } from './icons/IconComponents';
+
 import { getGroundElevation, formatElevation } from '../services/elevationService';
 import CalculationDetailsModal from './CalculationDetailsModal';
 import {
   metersToFeet, feetToMeters,
   msToFts, ftsToMs,
-  gToOz, ozToG
-} from '../constants';
+} from '../constants/index';
 
 interface MissionPlannerProps {
   params: LaunchParams;
@@ -47,13 +46,13 @@ const ForecastRow: React.FC<{
 
 const MissionPlanner: React.FC<MissionPlannerProps> = ({
   params, setParams,
-  calculatorParams, setCalculatorParams,
+
   onPredict, isLoading, unitSystem,
   launchWeather, mapResizeRef
 }) => {
-  const [calculationDetails, setCalculationDetails] = useState<CalculationBreakdown | null>(null);
+  const [calculationDetails] = useState<CalculationBreakdown | null>(null);
   const [isCalcModalOpen, setIsCalcModalOpen] = useState(false);
-  const [calcError, setCalcError] = useState<string | null>(null);
+
   const [aprsCallsign, setAprsCallsign] = useState('');
   const [isLoadingElevation, setIsLoadingElevation] = useState(false);
   const [groundElevation, setGroundElevation] = useState<number | null>(null);
@@ -89,15 +88,7 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
     setParams(prev => ({ ...prev, [field]: metricValue }));
   };
   
-  const handleCalcInputChange = (field: keyof CalculatorParams, value: string) => {
-    if (field === 'gas') {
-      setCalculatorParams(prev => ({ ...prev, gas: value as 'Helium' | 'Hydrogen' }));
-      return;
-    }
-    const numericValue = parseFloat(value) || 0;
-    const metricValue = isImperial ? ozToG(numericValue) : numericValue;
-    setCalculatorParams(prev => ({ ...prev, [field]: metricValue }));
-  };
+
 
   const handleMapChange = useCallback(async (lat: number, lon: number) => {
     setParams(prev => ({ ...prev, lat, lon }));
@@ -119,28 +110,7 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
     setParams(prev => ({ ...prev, launchTime: e.target.value }));
   };
 
-  const handleCalculate = () => {
-    setCalcError(null);
-    setCalculationDetails(null);
-    const results = calculateFlightPerformance(calculatorParams, params.launchAltitude);
-    if (!results) {
-        setCalcError("Invalid input. Please check balloon weight and other values.");
-    } else {
-        setCalculationDetails(results);
-    }
-  };
 
-  const handleApply = () => {
-    if (calculationDetails) {
-        setParams(prev => ({
-            ...prev,
-            ascentRate: calculationDetails.ascentRate,
-            burstAltitude: calculationDetails.burstAltitude,
-        }));
-    }
-  };
-  
-  const wUnit = isImperial ? 'oz' : 'g';
   const lUnit = isImperial ? 'ft' : 'm';
   const sUnit = isImperial ? 'ft/s' : 'm/s';
 

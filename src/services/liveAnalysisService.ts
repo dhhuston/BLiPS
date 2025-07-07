@@ -5,12 +5,17 @@ import {
   LivePredictionComparison, 
   LiveWeatherEstimate,
   PredictionResult,
-  FlightPoint,
   LaunchParams,
-  WeatherData
+  WeatherData,
+  FlightPoint
 } from '../types';
+import { MAX_REASONABLE_DEVIATION_M, MAX_ALTITUDE_DEVIATION_M, EARTH_RADIUS_M } from '../constants';
 import { runPredictionSimulation } from './predictionService';
-import { EARTH_RADIUS_M } from '../constants';
+
+/**
+ * Live analysis and comparison of real-time APRS data with predicted flight path.
+ * Provides accuracy metrics, deviation calculations, and recommendations.
+ */
 
 /**
  * Calculate distance between two points using Haversine formula
@@ -349,7 +354,7 @@ function estimateBurstAltitude(
   actualMetrics: ActualFlightMetrics,
   originalParams: LaunchParams
 ): number {
-  const { currentPosition, flightPhase, actualBurstAltitude } = actualMetrics;
+  const { flightPhase, actualBurstAltitude } = actualMetrics;
   
   // Only use actual burst altitude if we have definitive burst detection
   // (i.e., we've detected descent after reaching peak altitude)
@@ -403,24 +408,108 @@ export function generateUpdatedPrediction(
 }
 
 /**
+ * Calculates the accuracy of a live flight compared to the original prediction.
+ * Considers trajectory, altitude, and timing deviations.
+ * @param currentPositions Array of APRSPosition (real or simulated)
+ * @param originalPrediction The original PredictionResult
+ * @param launchParams Launch parameters
+ * @param weatherData Weather data used for prediction
+ * @returns LivePredictionComparison with accuracy metrics and recommendations
+ */
+export function createLivePredictionComparison(
+  currentPositions: APRSPosition[],
+  originalPrediction: PredictionResult,
+  launchParams: LaunchParams,
+  weatherData: WeatherData
+): LivePredictionComparison | null {
+  if (currentPositions.length === 0) return null;
+  
+  const actualMetrics = calculateActualFlightMetrics(currentPositions, originalPrediction);
+  const updatedPrediction = generateUpdatedPrediction(actualMetrics, launchParams, weatherData);
+  const accuracy = calculatePredictionAccuracy(originalPrediction, actualMetrics);
+  
+  // Debug logging for development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Live Analysis Debug:', {
+      positionCount: currentPositions.length,
+      currentAltitude: actualMetrics.currentPosition.altitude,
+      flightPhase: actualMetrics.flightPhase.phase,
+      ascentRate: actualMetrics.actualAscentRate,
+      descentRate: actualMetrics.actualDescentRate,
+      deviationDistance: actualMetrics.deviationFromPredicted.distance,
+      deviationAltitude: actualMetrics.deviationFromPredicted.altitudeDifference,
+      trajectoryAccuracy: accuracy.trajectoryAccuracy,
+      altitudeAccuracy: accuracy.altitudeAccuracy,
+      timeToLanding: actualMetrics.timeToLanding,
+      accuracyDetails: {
+        maxTrajectoryDev: 50000,
+        maxAltitudeDev: 5000,
+        rawTrajectoryAccuracy: 1 - (actualMetrics.deviationFromPredicted.distance / 50000),
+        rawAltitudeAccuracy: 1 - (Math.abs(actualMetrics.deviationFromPredicted.altitudeDifference) / 5000),
+        trajectoryCalc: `max(0.1, ${1 - (actualMetrics.deviationFromPredicted.distance / 50000)}) = ${accuracy.trajectoryAccuracy}`,
+        altitudeCalc: `max(0.1, ${1 - (Math.abs(actualMetrics.deviationFromPredicted.altitudeDifference) / 5000)}) = ${accuracy.altitudeAccuracy}`
+      }
+    });
+  }
+  
+  const comparison: LivePredictionComparison = {
+    originalPrediction,
+    updatedPrediction: updatedPrediction || undefined,
+    actualMetrics,
+    accuracy,
+    recommendations: []
+  };
+  
+  return comparison;
+}
+
+/**
+ * Calculates the deviation from the predicted path for a given position.
+ * Used for trajectory and altitude accuracy metrics.
+ * @param position The current APRSPosition
+ * @param predictedPath The predicted flight path
+ * @returns { distance: number, bearing: number, altitudeDifference: number }
+ */
+function calculateDeviationFromPredicted(
+  position: APRSPosition,
+  predictedPath: FlightPoint[]
+): { distance: number; bearing: number; altitudeDifference: number } {
+  // Find the closest point in the predicted path by time
+  let minTimeDiff = Infinity;
+  let closest: FlightPoint | null = null;
+  for (const p of predictedPath) {
+    const timeDiff = Math.abs(p.time - position.time);
+    if (timeDiff < minTimeDiff) {
+      minTimeDiff = timeDiff;
+      closest = p;
+    }
+  }
+  if (!closest) {
+    return { distance: 0, bearing: 0, altitudeDifference: 0 };
+  }
+  const distance = haversine(position.lat, position.lng, closest.lat, closest.lon);
+  const bearing = calculateBearing(closest.lat, closest.lon, position.lat, position.lng);
+  const altitudeDifference = (position.altitude ?? 0) - closest.altitude;
+  return { distance, bearing, altitudeDifference };
+}
+
+/**
  * Calculate prediction accuracy metrics
  */
 export function calculatePredictionAccuracy(
   originalPrediction: PredictionResult,
   actualMetrics: ActualFlightMetrics
 ): { trajectoryAccuracy: number; altitudeAccuracy: number; timingAccuracy: number; overallAccuracy: number } {
-  const { currentPosition, deviationFromPredicted } = actualMetrics;
+  const { deviationFromPredicted } = actualMetrics;
   
   // Trajectory accuracy (based on distance deviation)
   // For simulation scenarios, use more forgiving thresholds since we expect larger deviations
   // In real scenarios, balloons can deviate significantly due to unexpected weather
-  const maxReasonableDeviation = 50000; // 50km - balloons can drift far from predictions
-  const rawTrajectoryAccuracy = 1 - (deviationFromPredicted.distance / maxReasonableDeviation);
+      const rawTrajectoryAccuracy = 1 - (deviationFromPredicted.distance / MAX_REASONABLE_DEVIATION_M);
   const trajectoryAccuracy = Math.max(0.1, Math.min(1, rawTrajectoryAccuracy)); // Minimum 10% accuracy
   
   // Altitude accuracy - be more forgiving for simulations testing different scenarios
-  const maxAltitudeDeviation = 5000; // 5km - altitude predictions can vary significantly
-  const rawAltitudeAccuracy = 1 - (Math.abs(deviationFromPredicted.altitudeDifference) / maxAltitudeDeviation);
+      const rawAltitudeAccuracy = 1 - (Math.abs(deviationFromPredicted.altitudeDifference) / MAX_ALTITUDE_DEVIATION_M);
   const altitudeAccuracy = Math.max(0.1, Math.min(1, rawAltitudeAccuracy)); // Minimum 10% accuracy
   
   // Timing accuracy (based on actual vs predicted ascent/descent rates)
@@ -475,54 +564,4 @@ export function generateRecommendations(
   }
   
   return recommendations;
-}
-
-/**
- * Main function to create live prediction comparison
- */
-export function createLivePredictionComparison(
-  positions: APRSPosition[],
-  originalPrediction: PredictionResult,
-  originalParams: LaunchParams,
-  weatherData: WeatherData
-): LivePredictionComparison | null {
-  if (positions.length === 0) return null;
-  
-  const actualMetrics = calculateActualFlightMetrics(positions, originalPrediction);
-  const updatedPrediction = generateUpdatedPrediction(actualMetrics, originalParams, weatherData);
-  const accuracy = calculatePredictionAccuracy(originalPrediction, actualMetrics);
-  
-  // Debug logging for development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Live Analysis Debug:', {
-      positionCount: positions.length,
-      currentAltitude: actualMetrics.currentPosition.altitude,
-      flightPhase: actualMetrics.flightPhase.phase,
-      ascentRate: actualMetrics.actualAscentRate,
-      descentRate: actualMetrics.actualDescentRate,
-      deviationDistance: actualMetrics.deviationFromPredicted.distance,
-      deviationAltitude: actualMetrics.deviationFromPredicted.altitudeDifference,
-      trajectoryAccuracy: accuracy.trajectoryAccuracy,
-      altitudeAccuracy: accuracy.altitudeAccuracy,
-      timeToLanding: actualMetrics.timeToLanding,
-      accuracyDetails: {
-        maxTrajectoryDev: 50000,
-        maxAltitudeDev: 5000,
-        rawTrajectoryAccuracy: 1 - (actualMetrics.deviationFromPredicted.distance / 50000),
-        rawAltitudeAccuracy: 1 - (Math.abs(actualMetrics.deviationFromPredicted.altitudeDifference) / 5000),
-        trajectoryCalc: `max(0.1, ${1 - (actualMetrics.deviationFromPredicted.distance / 50000)}) = ${accuracy.trajectoryAccuracy}`,
-        altitudeCalc: `max(0.1, ${1 - (Math.abs(actualMetrics.deviationFromPredicted.altitudeDifference) / 5000)}) = ${accuracy.altitudeAccuracy}`
-      }
-    });
-  }
-  
-  const comparison: LivePredictionComparison = {
-    originalPrediction,
-    updatedPrediction: updatedPrediction || undefined,
-    actualMetrics,
-    accuracy,
-    recommendations: []
-  };
-  
-  return comparison;
 } 

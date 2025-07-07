@@ -1,8 +1,7 @@
-
 import React from 'react';
-import { CalculationBreakdown, UnitSystem } from '../types';
+import { CalculationBreakdown, UnitSystem } from '../types/index';
 import { CloseIcon } from './icons/IconComponents';
-import { msToFts, metersToFeet } from '../constants';
+import { msToFts, metersToFeet } from '../constants/index';
 
 interface ModalProps {
   details: CalculationBreakdown;

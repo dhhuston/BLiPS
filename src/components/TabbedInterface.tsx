@@ -1,18 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LaunchParams, UnitSystem, CalculatorParams, PredictionResult, WeatherData } from '../types';
+import { LaunchParams, UnitSystem, CalculatorParams, PredictionResult, WeatherData } from '../types/index';
 import MissionPlanner from './MissionPlanner';
 import SafetyInfo from './SafetyInfo';
 import LeafletVisualization from './LeafletVisualization';
 import CalculatorTab from './CalculatorTab';
-import { ComprehensiveWeather } from '../types';
+import { ComprehensiveWeather } from '../types/index';
 import GlobeVisualization from './GlobeVisualization';
 import LivePredictionPanel from './LivePredictionPanel';
+import APRSService from '../services/aprsService';
 
 interface TabbedInterfaceProps {
   launchParams: LaunchParams;
-  setLaunchParams: (params: LaunchParams) => void;
+  setLaunchParams: React.Dispatch<React.SetStateAction<LaunchParams>>;
   calculatorParams: CalculatorParams;
-  setCalculatorParams: (params: CalculatorParams) => void;
+  setCalculatorParams: React.Dispatch<React.SetStateAction<CalculatorParams>>;
   onPredict: () => void;
   isLoading: boolean;
   unitSystem: UnitSystem;
@@ -41,8 +42,8 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('calculator');
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
-  const mapResizeRef = useRef<() => void>();
-  const leafletMapResizeRef = useRef<() => void>();
+  const mapResizeRef = useRef<() => void>(() => {});
+  const leafletMapResizeRef = useRef<() => void>(() => {});
 
   const handlePredictAndSwitch = () => {
     onPredict();
@@ -53,17 +54,17 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
     setActiveTab(tabId);
     setTabSwitchCount(c => c + 1);
     if (tabId === 'mission' && mapResizeRef.current) {
-      setTimeout(() => mapResizeRef.current && mapResizeRef.current(), 100);
+      setTimeout(() => mapResizeRef.current?.(), 100);
     }
     if (tabId === 'visualization' && leafletMapResizeRef.current) {
-      setTimeout(() => leafletMapResizeRef.current && leafletMapResizeRef.current(), 200);
+      setTimeout(() => leafletMapResizeRef.current?.(), 200);
     }
   };
 
   const handleApplyAndSwitchToMission = () => {
     setActiveTab('mission');
     if (mapResizeRef.current) {
-      setTimeout(() => mapResizeRef.current && mapResizeRef.current(), 100);
+      setTimeout(() => mapResizeRef.current?.(), 100);
     }
   };
 
@@ -72,7 +73,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
     { id: 'mission', label: 'Mission Planning', icon: '🎈' },
     { id: 'visualization', label: 'Trajectory View', icon: '🗺️' },
     { id: '3d', label: '3D View', icon: '🌍' },
-    { id: 'safety', label: 'Safety Analysis', icon: '🛡️' },
+    { id: 'safety', label: 'Prelaunch Communication', icon: '🛡️' },
     { id: 'details', label: 'Flight Details', icon: '📊' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
@@ -92,7 +93,6 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
               unitSystem={unitSystem}
               launchWeather={launchWeather}
               mapResizeRef={mapResizeRef}
-              hideCalculator={true}
             />
             {error && (
               <div className="bg-red-900/50 border border-red-700 text-red-300 p-4 rounded-lg">
@@ -114,7 +114,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
           />
         );
       case 'visualization':
-        return (
+        return prediction ? (
           <div className="min-h-[700px] max-h-[90vh] overflow-auto">
             <LeafletVisualization 
               result={prediction} 
@@ -126,6 +126,12 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
               error={error}
               tabSwitchCount={tabSwitchCount}
             />
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-400">
+            <div className="text-6xl mb-4">🗺️</div>
+            <h3 className="text-xl font-semibold mb-2">Trajectory Visualization</h3>
+            <p>Run a prediction first to view the trajectory</p>
           </div>
         );
       case '3d':
@@ -150,7 +156,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
         ) : (
           <div className="text-center py-12 text-gray-400">
             <div className="text-6xl mb-4">🛡️</div>
-            <h3 className="text-xl font-semibold mb-2">Safety Analysis</h3>
+            <h3 className="text-xl font-semibold mb-2">Prelaunch Communication</h3>
             <p>Run a prediction first to view safety information</p>
           </div>
         );
@@ -170,7 +176,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Launch Time:</span>
-                      <span>{new Date(prediction.launchTime).toLocaleString()}</span>
+                      <span>{new Date(launchParams.launchTime).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">ARTCC:</span>
@@ -187,7 +193,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Flight Duration:</span>
-                      <span>{Math.round(prediction.flightDuration / 60)} minutes</span>
+                      <span>{prediction.flightDuration ? Math.round(prediction.flightDuration / 60) : 'Unknown'} minutes</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">ARTCC:</span>
@@ -203,25 +209,27 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-gray-700 rounded-lg">
                   <div className="text-2xl font-bold text-blue-400">
-                    {unitSystem === 'metric' 
-                      ? `${Math.round(prediction.maxAltitude)}m`
-                      : `${Math.round(prediction.maxAltitude * 3.28084)}ft`
-                    }
+                    {prediction.maxAltitude ? (
+                      unitSystem === 'metric' 
+                        ? `${Math.round(prediction.maxAltitude)}m`
+                        : `${Math.round(prediction.maxAltitude * 3.28084)}ft`
+                    ) : 'Unknown'}
                   </div>
                   <div className="text-sm text-gray-400">Max Altitude</div>
                 </div>
                 <div className="text-center p-4 bg-gray-700 rounded-lg">
                   <div className="text-2xl font-bold text-green-400">
-                    {unitSystem === 'metric'
-                      ? `${Math.round(prediction.distance / 1000)}km`
-                      : `${Math.round(prediction.distance * 0.000621371)}mi`
-                    }
+                    {prediction.distance ? (
+                      unitSystem === 'metric'
+                        ? `${Math.round(prediction.distance / 1000)}km`
+                        : `${Math.round(prediction.distance * 0.000621371)}mi`
+                    ) : 'Unknown'}
                   </div>
                   <div className="text-sm text-gray-400">Total Distance</div>
                 </div>
                 <div className="text-center p-4 bg-gray-700 rounded-lg">
                   <div className="text-2xl font-bold text-yellow-400">
-                    {Math.round(prediction.flightDuration / 60)}min
+                    {prediction.flightDuration ? Math.round(prediction.flightDuration / 60) : 'Unknown'}min
                   </div>
                   <div className="text-sm text-gray-400">Flight Time</div>
                 </div>
@@ -255,26 +263,30 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
 
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden">
-      {/* Tab Navigation */}
-      <div className="flex border-b border-gray-700">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => handleTabClick(tab.id)}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? 'bg-gray-700 text-white border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            <span className="mr-2">{tab.icon}</span>
-            {tab.label}
-          </button>
-        ))}
+      {/* Mobile-friendly tab navigation */}
+      <div className="bg-gray-700 border-b border-gray-600 overflow-x-auto">
+        <div className="flex min-w-max sm:justify-center">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabClick(tab.id)}
+              className={`flex-shrink-0 px-3 sm:px-4 py-3 sm:py-4 text-sm font-medium transition-colors duration-200 min-h-[48px] ${
+                activeTab === tab.id
+                  ? 'bg-cyan-600 text-white border-b-2 border-cyan-400'
+                  : 'text-gray-300 hover:bg-gray-600 hover:text-white'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
+                <span className="text-base sm:text-lg">{tab.icon}</span>
+                <span className="text-xs sm:text-sm whitespace-nowrap">{tab.label}</span>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Tab Content */}
-      <div className="p-6">
+      {/* Tab content */}
+      <div className="p-3 sm:p-4 lg:p-6">
         {renderTabContent()}
       </div>
     </div>
@@ -406,12 +418,9 @@ const APRSTrackingPanel: React.FC = () => {
     if (stored) setCallsign(stored);
   }, []);
 
-  // Callsign validation
-  const isValidCallsign = (cs: string) => /^[A-Z0-9]{1,6}(-[0-9A-Z]{1,2})?$/i.test(cs);
-
   // Fetch APRS positions
-  const fetchPositions = async (manual?: boolean) => {
-    if (!isValidCallsign(callsign)) {
+  const fetchPositions = async () => {
+    if (!APRSService.isValidCallsign(callsign)) {
       setError('Please enter a valid APRS callsign (e.g., N0CALL-9).');
       setPositions([]);
       return;
@@ -424,9 +433,9 @@ const APRSTrackingPanel: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const url = `/aprs/get?name=${encodeURIComponent(callsign)}&what=loc&apikey=${apiKey}&format=json`;
-      const res = await fetch(url);
-      const data = await res.json();
+      const aprsService = APRSService.create(apiKey);
+      const data = await aprsService.fetchPositions(callsign);
+      
       if (data.result === 'fail') {
         setError(data.description || 'APRS.fi API error.');
         setPositions([]);
@@ -498,7 +507,7 @@ const APRSTrackingPanel: React.FC = () => {
           />
         </div>
         <button
-          onClick={() => fetchPositions(true)}
+                          onClick={() => fetchPositions()}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded shadow transition"
           disabled={loading || !callsign || !apiKey}
         >

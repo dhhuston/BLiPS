@@ -1,5 +1,23 @@
 export type UnitSystem = 'metric' | 'imperial';
 
+// --- Geocoding Types ---
+export interface GeocodingResult {
+  lat: string;
+  lon: string;
+  display_name: string;
+  type: string;
+}
+
+export interface GeocodingResponse extends Array<GeocodingResult> {}
+
+// --- APRS Types ---
+export interface APRSResponse {
+  result: string;
+  description?: string;
+  found: number;
+  entries?: APRSPosition[];
+}
+
 export interface CalculatorParams {
   payloadWeight: number; // g
   balloonWeight: number; // g
