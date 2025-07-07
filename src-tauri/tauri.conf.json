@@ -44,13 +44,7 @@
       "minimumSystemVersion": "13.0"
     },
     "macOS": {
-      "minimumSystemVersion": "10.15",
-      "codeSigningIdentity": null,
-      "hardenedRuntime": false,
-      "entitlements": null,
-      "exceptionDomain": null,
-      "providerShortName": null,
-      "signingOptions": null
+      "minimumSystemVersion": "10.15"
     }
   },
   "plugins": {
