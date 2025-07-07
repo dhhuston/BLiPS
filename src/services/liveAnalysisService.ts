@@ -369,11 +369,11 @@ function estimateBurstAltitude(
 /**
  * Generate updated prediction from current position
  */
-export function generateUpdatedPrediction(
+export async function generateUpdatedPrediction(
   actualMetrics: ActualFlightMetrics,
   originalParams: LaunchParams,
   weatherData: WeatherData
-): PredictionResult | null {
+): Promise<PredictionResult | null> {
   const { currentPosition, flightPhase, actualAscentRate, actualDescentRate } = actualMetrics;
   
   // Estimate burst altitude based on current performance
@@ -400,7 +400,7 @@ export function generateUpdatedPrediction(
   }
 
   try {
-    return runPredictionSimulation(updatedParams, weatherData);
+    return await runPredictionSimulation(updatedParams, weatherData);
   } catch (error) {
     console.error('Failed to generate updated prediction:', error);
     return null;
@@ -416,16 +416,16 @@ export function generateUpdatedPrediction(
  * @param weatherData Weather data used for prediction
  * @returns LivePredictionComparison with accuracy metrics and recommendations
  */
-export function createLivePredictionComparison(
+export async function createLivePredictionComparison(
   currentPositions: APRSPosition[],
   originalPrediction: PredictionResult,
   launchParams: LaunchParams,
   weatherData: WeatherData
-): LivePredictionComparison | null {
+): Promise<LivePredictionComparison | null> {
   if (currentPositions.length === 0) return null;
   
   const actualMetrics = calculateActualFlightMetrics(currentPositions, originalPrediction);
-  const updatedPrediction = generateUpdatedPrediction(actualMetrics, launchParams, weatherData);
+  const updatedPrediction = await generateUpdatedPrediction(actualMetrics, launchParams, weatherData);
   const accuracy = calculatePredictionAccuracy(originalPrediction, actualMetrics);
   
   // Debug logging for development

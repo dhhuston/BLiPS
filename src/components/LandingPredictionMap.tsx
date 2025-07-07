@@ -8,6 +8,7 @@ import {
   PredictionResult, 
   DummyFlightConfig
 } from '../types';
+import { findNearestRoad } from '../services/elevationService';
 
 // Fix for default icon path issue with webpack
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -32,6 +33,7 @@ const originalLandingIcon = createCustomIcon('#3B82F6', 'O'); // Blue for origin
 const updatedLandingIcon = createCustomIcon('#10B981', 'U'); // Green for updated
 const launchIcon = createCustomIcon('#F59E0B', 'L'); // Orange for launch
 const balloonIcon = createCustomIcon('#DC2626', 'B'); // Red for balloon
+const roadIcon = createCustomIcon('#8B5CF6', '🚗'); // Purple for road
 
 interface LandingPredictionMapProps {
   originalPrediction: PredictionResult;
@@ -49,6 +51,12 @@ const LandingPredictionMap: React.FC<LandingPredictionMapProps> = ({
   dummyConfig
 }) => {
   const isImperial = unitSystem === 'imperial';
+  const [roadData, setRoadData] = React.useState<{
+    roadLat: number;
+    roadLon: number;
+    distance: number;
+    roadName?: string;
+  } | null>(null);
   
   const formatDistance = (meters: number): string => {
     if (isImperial) {
@@ -56,6 +64,50 @@ const LandingPredictionMap: React.FC<LandingPredictionMapProps> = ({
       return miles < 1 ? `${Math.round(meters * 3.28084)}ft` : `${miles.toFixed(1)}mi`;
     }
     return meters < 1000 ? `${Math.round(meters)}m` : `${(meters / 1000).toFixed(1)}km`;
+  };
+
+  // Fetch road data when landing point changes
+  React.useEffect(() => {
+    const fetchRoadData = async () => {
+      const landingPoint = liveComparison?.updatedPrediction?.landingPoint || originalPrediction.landingPoint;
+      const road = await findNearestRoad(landingPoint.lat, landingPoint.lon);
+      setRoadData(road);
+    };
+
+    fetchRoadData();
+  }, [originalPrediction.landingPoint, liveComparison?.updatedPrediction?.landingPoint]);
+
+  // Helper function to get terrain warning color
+  const getTerrainWarningColor = (risk: string) => {
+    switch (risk) {
+      case 'high': return 'text-red-500';
+      case 'moderate': return 'text-yellow-500';
+      case 'low': return 'text-green-500';
+      default: return 'text-gray-500';
+    }
+  };
+
+  // Helper function to render terrain warnings
+  const renderTerrainWarnings = (terrainAnalysis: any) => {
+    if (!terrainAnalysis) return null;
+    
+    return (
+      <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+        <div className={`font-semibold ${getTerrainWarningColor(terrainAnalysis.risk)}`}>
+          🏔️ {terrainAnalysis.summary}
+        </div>
+        <div className="text-gray-600 mt-1">
+          Risk: <span className={getTerrainWarningColor(terrainAnalysis.risk)}>{terrainAnalysis.risk}</span><br />
+          Elevation: {Math.round(terrainAnalysis.details.mean)}m<br />
+          Slope: {terrainAnalysis.details.maxSlope.toFixed(1)}m max
+        </div>
+        {terrainAnalysis.risk === 'high' && (
+          <div className="text-red-600 font-semibold mt-1">
+            ⚠️ Difficult terrain - consider alternative landing zones
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Calculate map bounds to fit all points
@@ -116,9 +168,14 @@ const LandingPredictionMap: React.FC<LandingPredictionMapProps> = ({
       points.push([assumedLoc.lat, assumedLoc.lng + radiusInDegrees]);
       points.push([assumedLoc.lat, assumedLoc.lng - radiusInDegrees]);
     }
+
+    // Include road point if available
+    if (roadData) {
+      points.push([roadData.roadLat, roadData.roadLon]);
+    }
     
     return L.latLngBounds(points);
-  }, [originalPrediction, liveComparison, currentPositions, dummyConfig]);
+  }, [originalPrediction, liveComparison, currentPositions, dummyConfig, roadData]);
 
   // Calculate center point
   const center = React.useMemo(() => {
@@ -178,6 +235,7 @@ const LandingPredictionMap: React.FC<LandingPredictionMapProps> = ({
               Lat: {originalPrediction.landingPoint.lat.toFixed(6)}<br />
               Lon: {originalPrediction.landingPoint.lon.toFixed(6)}<br />
               Time: {new Date(originalPrediction.landingPoint.time * 1000).toLocaleTimeString()}
+              {renderTerrainWarnings(originalPrediction.terrainAnalysis)}
             </div>
           </Popup>
         </Marker>
@@ -201,6 +259,7 @@ const LandingPredictionMap: React.FC<LandingPredictionMapProps> = ({
                   <span className="text-green-600 font-semibold">
                     Accuracy: {(liveComparison.accuracy.trajectoryAccuracy * 100).toFixed(1)}%
                   </span>
+                  {renderTerrainWarnings(liveComparison.updatedPrediction.terrainAnalysis)}
                 </div>
               </Popup>
             </Marker>
@@ -216,6 +275,27 @@ const LandingPredictionMap: React.FC<LandingPredictionMapProps> = ({
               dashArray="5, 5"
             />
           </>
+        )}
+
+        {/* Nearest Road Point */}
+        {roadData && (
+          <Marker
+            position={[roadData.roadLat, roadData.roadLon]}
+            icon={roadIcon}
+          >
+            <Popup>
+              <div className="text-sm">
+                <strong>🚗 Nearest Road Access</strong><br />
+                Road: {roadData.roadName}<br />
+                Distance: {formatDistance(roadData.distance)}<br />
+                Lat: {roadData.roadLat.toFixed(6)}<br />
+                Lon: {roadData.roadLon.toFixed(6)}<br />
+                <span className="text-purple-600 font-semibold">
+                  Vehicle access point
+                </span>
+              </div>
+            </Popup>
+          </Marker>
         )}
         
         {/* Flight path - original prediction (gray) */}

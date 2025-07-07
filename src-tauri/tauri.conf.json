@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "com.blips.balloon-prediction",
   "productName": "BLiPS",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",

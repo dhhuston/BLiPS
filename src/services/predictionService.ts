@@ -13,6 +13,7 @@ import {
   BURST_RADIUS_COEFFICIENT,
   BURST_RADIUS_EXPONENT,
 } from '../constants';
+import { getGroundElevation, getElevationGrid, analyzeTerrainGrid } from './elevationService';
 
 /**
  * Standard atmosphere model to estimate pressure from altitude.
@@ -135,12 +136,12 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
 /**
  * Simulates the full flight trajectory (ascent and descent) for a balloon launch.
  * Steps through the flight in TIME_STEP_S increments, updating position and altitude
- * using wind interpolation and physics constants. Returns the full path and summary.
+ * using wind interpolation and physics constants. Includes ground altitude checks for accurate landing.
  * @param params Launch parameters
  * @param weatherData Weather data for the launch
  * @returns PredictionResult with full path, launch/burst/landing points, and stats
  */
-export const runPredictionSimulation = (params: LaunchParams, weatherData: WeatherData): PredictionResult => {
+export const runPredictionSimulation = async (params: LaunchParams, weatherData: WeatherData): Promise<PredictionResult> => {
   const path: FlightPoint[] = [];
   let currentTime = 0;
   let currentLat = params.lat;
@@ -179,12 +180,30 @@ export const runPredictionSimulation = (params: LaunchParams, weatherData: Weath
 
   const burstPoint: FlightPoint = path[path.length - 1];
 
-  // Descent phase
-  while (currentAltitude > 0) {
+  // Descent phase with ground altitude checks
+  let groundElevation = 0; // Default to sea level
+  let elevationChecked = false;
+  
+  while (currentAltitude > groundElevation) {
     currentAltitude -= params.descentRate * TIME_STEP_S;
-     if (currentAltitude < 0) {
-        currentAltitude = 0;
+    
+    // Check ground elevation when balloon gets close to potential landing
+    if (!elevationChecked && currentAltitude < 5000) { // Check when below 5km
+      try {
+        groundElevation = await getGroundElevation(currentLat, currentLon);
+        elevationChecked = true;
+      } catch (error) {
+        console.warn('Failed to get ground elevation, using sea level:', error);
+        groundElevation = 0;
+        elevationChecked = true;
+      }
     }
+    
+    // Ensure altitude doesn't go below ground level
+    if (currentAltitude < groundElevation) {
+      currentAltitude = groundElevation;
+    }
+    
     currentTime += TIME_STEP_S;
 
     const { speed, direction } = interpolateWind(currentAltitude, currentTime, weatherData, params.launchTime);
@@ -216,6 +235,15 @@ export const runPredictionSimulation = (params: LaunchParams, weatherData: Weath
   }
   const flightDuration = currentTime; // seconds
 
+  // --- Terrain analysis ---
+  let terrainAnalysis = undefined;
+  try {
+    const grid = await getElevationGrid(landingPoint.lat, landingPoint.lon, 500, 5);
+    terrainAnalysis = analyzeTerrainGrid(grid);
+  } catch (e) {
+    console.warn('Terrain analysis failed:', e);
+  }
+
   return {
     path,
     launchPoint,
@@ -224,7 +252,8 @@ export const runPredictionSimulation = (params: LaunchParams, weatherData: Weath
     totalTime: currentTime,
     maxAltitude: isFinite(maxAltitude) ? maxAltitude : 0,
     distance: isFinite(distance) ? distance : 0,
-    flightDuration: isFinite(flightDuration) ? flightDuration : 0
+    flightDuration: isFinite(flightDuration) ? flightDuration : 0,
+    terrainAnalysis
   };
 };
 

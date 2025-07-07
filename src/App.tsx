@@ -5,6 +5,7 @@ import Header from './components/Header';
 import TabbedInterface from './components/TabbedInterface';
 import LiabilityModal from './components/LiabilityModal';
 import { getARTCC } from './services/atcService';
+import { initializeElevationCache } from './services/elevationService';
 
 const getDefaultLaunchTime = () => {
   const now = new Date();
@@ -60,6 +61,9 @@ const App: React.FC = () => {
     }
   }, [prediction]);
 
+  useEffect(() => {
+    initializeElevationCache();
+  }, []);
 
   const handlePredict = () => {
     runPrediction(launchParams);

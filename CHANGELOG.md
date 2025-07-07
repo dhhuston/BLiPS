@@ -34,6 +34,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
+## [0.9.10] - 2024-12-19
+
+### Added
+- **Elevation Caching System:** Comprehensive localStorage-based caching for elevation data to reduce API calls and improve performance
+- **Cache Statistics Display:** Added cache performance metrics to Settings tab showing cached points, grids, and total size
+- **Automatic Cache Management:** 24-hour cache expiration with automatic cleanup on startup and hourly intervals
+- **Coordinate Precision Matching:** Smart coordinate rounding to prevent excessive cache entries for nearby locations
+- **Cache Initialization:** Automatic cache system startup with periodic cleanup intervals
+- **Performance Monitoring:** Cache statistics tracking for debugging and user awareness
+
+### Changed
+- **Elevation Service:** Enhanced with caching layer for both single point and grid elevation requests
+- **Settings Interface:** Added cache statistics section with visual metrics and performance information
+- **App Initialization:** Integrated elevation cache system startup in main App component
+
+### Technical Improvements
+- **API Call Reduction:** Significant reduction in elevation API calls through intelligent caching
+- **Performance Optimization:** Faster prediction calculations using cached elevation data
+- **Storage Management:** Automatic cleanup prevents localStorage bloat from expired cache entries
+- **Error Handling:** Graceful fallback when cache operations fail
+
+### Fixed
+- **Prediction Performance:** Improved response times for repeated predictions in same geographic areas
+- **API Rate Limiting:** Reduced load on elevation APIs through effective caching strategy
+
 ## [0.9.9] - 2024-07-07
 
 ### Added

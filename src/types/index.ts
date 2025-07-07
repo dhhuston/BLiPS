@@ -8,7 +8,7 @@ export interface GeocodingResult {
   type: string;
 }
 
-export interface GeocodingResponse extends Array<GeocodingResult> {}
+export type GeocodingResponse = GeocodingResult[];
 
 // --- APRS Types ---
 export interface APRSResponse {
@@ -43,6 +43,20 @@ export interface FlightPoint {
   altitude: number; // meters
 }
 
+export interface TerrainAnalysis {
+  summary: string;
+  risk: 'low' | 'moderate' | 'high';
+  details: {
+    min: number;
+    max: number;
+    mean: number;
+    stddev: number;
+    maxSlope: number;
+    meanSlope: number;
+    roughness: number;
+  };
+}
+
 export interface PredictionResult {
   path: FlightPoint[];
   launchPoint: FlightPoint;
@@ -52,6 +66,7 @@ export interface PredictionResult {
   maxAltitude?: number;
   distance?: number;
   flightDuration?: number;
+  terrainAnalysis?: TerrainAnalysis;
 }
 
 export interface WeatherData {

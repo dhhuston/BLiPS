@@ -1,6 +1,7 @@
 import { APRSPosition, DummyFlightConfig, LaunchParams, PredictionResult, WeatherData } from '../types';
 import { altitudeToPressure } from './predictionService';
 import { PRESSURE_LEVELS, GROUND_WIND_SPEED_MS, GROUND_WIND_DIRECTION_DEG, JET_STREAM_ALTITUDE_M, EARTH_RADIUS_M } from '../constants';
+import { getGroundElevation } from './elevationService';
 
 /**
  * DummyFlightSimulator simulates realistic APRS positions for a balloon flight.
@@ -30,7 +31,7 @@ export class DummyFlightSimulator {
    * Generate APRS positions up to current simulation time.
    * Simulates beacon intervals, landing, and beacon loss.
    */
-  generatePositions(): APRSPosition[] {
+  async generatePositions(): Promise<APRSPosition[]> {
     if (!this.config.enabled) return [];
 
     const currentTime = this.config.currentTime;
@@ -43,7 +44,7 @@ export class DummyFlightSimulator {
     // Generate positions at beacon intervals until assumed landing
 
     for (let time = startTime; time <= currentTime; time += this.config.beaconInterval) {
-      const position = this.generatePositionAtTime(time);
+      const position = await this.generatePositionAtTime(time);
       if (position) {
         this.positions.push(position);
 
@@ -75,7 +76,7 @@ export class DummyFlightSimulator {
    * Generate a single position at a specific time.
    * Handles extrapolation after landing, scenario modifications, and noise.
    */
-  private generatePositionAtTime(timestamp: number): APRSPosition | null {
+  private async generatePositionAtTime(timestamp: number): Promise<APRSPosition | null> {
     const flightTime = timestamp - this.config.startTime;
     
     // Find the closest predicted point or extrapolate beyond the flight
@@ -104,11 +105,20 @@ export class DummyFlightSimulator {
       const driftLon = (driftDistance * Math.sin(groundWindDir * Math.PI / 180)) / 
                       (111320 * Math.cos(landingPoint.lat * Math.PI / 180));
       
+      // Get ground elevation for accurate landing altitude
+      let groundElevation = 0;
+      try {
+        groundElevation = await getGroundElevation(landingPoint.lat + driftLat, landingPoint.lon + driftLon);
+      } catch (error) {
+        console.warn('Failed to get ground elevation for simulation, using sea level:', error);
+        groundElevation = 0;
+      }
+      
       closestPoint = {
         time: flightTime,
         lat: landingPoint.lat + driftLat,
         lon: landingPoint.lon + driftLon,
-        altitude: 0 // On ground
+        altitude: groundElevation // Use actual ground elevation
       };
     }
 

@@ -8,6 +8,7 @@ import { ComprehensiveWeather } from '../types/index';
 import GlobeVisualization from './GlobeVisualization';
 import LivePredictionPanel from './LivePredictionPanel';
 import APRSService from '../services/aprsService';
+import { getCacheStats } from '../services/elevationService';
 
 interface TabbedInterfaceProps {
   launchParams: LaunchParams;
@@ -298,6 +299,7 @@ const SettingsTab: React.FC = () => {
   const [callsign, setCallsign] = useState('');
   const [cesiumToken, setCesiumToken] = useState('');
   const [saved, setSaved] = useState(false);
+  const [cacheStats, setCacheStats] = useState<{ singlePoints: number; grids: number; totalSize: number }>({ singlePoints: 0, grids: 0, totalSize: 0 });
 
   useEffect(() => {
     const storedApiKey = localStorage.getItem('aprsFiApiKey');
@@ -306,6 +308,9 @@ const SettingsTab: React.FC = () => {
     if (storedCallsign) setCallsign(storedCallsign);
     const storedCesiumToken = localStorage.getItem('cesiumIonAccessToken');
     if (storedCesiumToken) setCesiumToken(storedCesiumToken);
+    
+    // Update cache statistics
+    setCacheStats(getCacheStats());
   }, []);
 
   const handleSave = () => {
@@ -374,6 +379,31 @@ const SettingsTab: React.FC = () => {
         Save Settings
       </button>
       {saved && <span className="ml-3 text-green-400">Saved!</span>}
+      
+      {/* Cache Statistics */}
+      <div className="mt-6 p-4 bg-gray-900 rounded border border-gray-700">
+        <h3 className="text-lg font-semibold text-cyan-300 mb-3">Elevation Cache Statistics</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="text-center p-3 bg-gray-800 rounded">
+            <div className="text-2xl font-bold text-blue-400">{cacheStats.singlePoints}</div>
+            <div className="text-gray-400">Single Points</div>
+          </div>
+          <div className="text-center p-3 bg-gray-800 rounded">
+            <div className="text-2xl font-bold text-green-400">{cacheStats.grids}</div>
+            <div className="text-gray-400">Elevation Grids</div>
+          </div>
+          <div className="text-center p-3 bg-gray-800 rounded">
+            <div className="text-2xl font-bold text-purple-400">{Math.round(cacheStats.totalSize / 1024)}KB</div>
+            <div className="text-gray-400">Cache Size</div>
+          </div>
+        </div>
+        <div className="mt-3 text-xs text-gray-400">
+          <p>• Cache reduces API calls and improves performance</p>
+          <p>• Data expires after 24 hours</p>
+          <p>• Cache is automatically cleaned up</p>
+        </div>
+      </div>
+      
       <div className="bg-gray-900 p-4 rounded border border-gray-700 mt-4">
         <p className="text-yellow-300 text-xs">
           Never share your API keys or access tokens publicly or commit them to version control.

@@ -55,61 +55,69 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
     }
   }, [originalPrediction, launchParams, weatherData]);
 
-  // Memoize positions to prevent unnecessary recalculations
-  // Only update when simulation time changes (which happens at beacon intervals)
-  const currentPositions = React.useMemo(() => {
-    if (dataSource === 'aprs') {
-      // Use real APRS data from aprs.fi for the callsign
-      return aprsPositions;
-    } else if (dataSource === 'simulation' && dummyConfig.enabled) {
-      // Use dummy simulation data
-      if (dummySimulator) {
-        const positions = dummySimulator.generatePositions();
-        
-        // Debug log to verify position stability
-        if (positions.length > 0 && process.env.NODE_ENV === 'development') {
-          const latest = positions[positions.length - 1];
-          console.log(`[${simulationTime}s] Generated ${positions.length} positions, latest: Alt=${latest.altitude?.toFixed(1)}m, Lat=${latest.lat.toFixed(6)}`);
+  // State to store current positions
+  const [currentPositions, setCurrentPositions] = useState<APRSPosition[]>([]);
+
+  // Update positions when dependencies change
+  useEffect(() => {
+    const updatePositions = async () => {
+      if (dataSource === 'aprs') {
+        // Use real APRS data from aprs.fi for the callsign
+        setCurrentPositions(aprsPositions);
+      } else if (dataSource === 'simulation' && dummyConfig.enabled) {
+        // Use dummy simulation data
+        if (dummySimulator) {
+          const positions = await dummySimulator.generatePositions();
+          
+          // Debug log to verify position stability
+          if (positions.length > 0 && process.env.NODE_ENV === 'development') {
+            const latest = positions[positions.length - 1];
+            console.log(`[${simulationTime}s] Generated ${positions.length} positions, latest: Alt=${latest.altitude?.toFixed(1)}m, Lat=${latest.lat.toFixed(6)}`);
+          }
+          
+          setCurrentPositions(positions);
         }
-        
-        return positions;
+      } else {
+        setCurrentPositions([]);
       }
-    }
-    return [];
+    };
+
+    updatePositions();
   }, [dataSource, aprsPositions, dummyConfig.enabled, simulationTime, dummySimulator]);
 
   // Track last processed position to prevent unnecessary recalculations
   const lastProcessedPositionRef = useRef<APRSPosition | null>(null);
   
-  // Update live comparison when positions actually change
+  // Async effect for live prediction comparison
   useEffect(() => {
-    if (!weatherData) return;
-
-    if (currentPositions.length > 0) {
-      const lastPosition = currentPositions[currentPositions.length - 1];
-      const lastProcessed = lastProcessedPositionRef.current;
-      
-      // Only update if we have a truly new position
-      const shouldUpdate = !lastProcessed || 
-        lastProcessed.time !== lastPosition.time ||
-        lastProcessed.altitude !== lastPosition.altitude ||
-        lastProcessed.lat !== lastPosition.lat ||
-        lastProcessed.lng !== lastPosition.lng;
-      
-      if (shouldUpdate) {
-        const comparison = createLivePredictionComparison(
-          currentPositions,
-          originalPrediction,
-          launchParams,
-          weatherData
-        );
-        setLiveComparison(comparison);
-        lastProcessedPositionRef.current = lastPosition;
+    const updateComparison = async () => {
+      if (currentPositions.length > 0 && weatherData) {
+        const lastPosition = currentPositions[currentPositions.length - 1];
+        const lastProcessed = lastProcessedPositionRef.current;
+        
+        const shouldUpdate = !lastProcessed ||
+          lastProcessed.time !== lastPosition.time ||
+          lastProcessed.altitude !== lastPosition.altitude ||
+          lastProcessed.lat !== lastPosition.lat ||
+          lastProcessed.lng !== lastPosition.lng;
+        
+        if (shouldUpdate) {
+          const comparison = await createLivePredictionComparison(
+            currentPositions,
+            originalPrediction,
+            launchParams,
+            weatherData
+          );
+          setLiveComparison(comparison);
+          lastProcessedPositionRef.current = lastPosition;
+        }
+      } else {
+        setLiveComparison(null);
+        lastProcessedPositionRef.current = null;
       }
-    } else {
-      setLiveComparison(null);
-      lastProcessedPositionRef.current = null;
-    }
+    };
+
+    updateComparison();
   }, [currentPositions, originalPrediction, launchParams, weatherData]);
 
   // Handle dummy simulation controls
