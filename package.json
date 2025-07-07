@@ -1,7 +1,7 @@
 {
   "name": "blips",
   "description": "Balloon Launch Prediction Software - Advanced trajectory prediction and mission planning for high-altitude balloon launches",
-  "version": "0.1.0",
+  "version": "0.9.9",
   "type": "module",
   "private": false,
   "homepage": "https://yourusername.github.io/blips",
