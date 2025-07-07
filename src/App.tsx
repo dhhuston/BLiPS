@@ -155,7 +155,7 @@ const App: React.FC = () => {
         </div>
       </main>
       <footer className="text-center p-4 text-gray-500 text-sm">
-        <p>BLiPS &copy; 2024. For simulation purposes only. Not for operational use.</p>
+        <p>BLiPS &copy; 2025. For simulation purposes only. Not for operational use.</p>
         <button 
           onClick={() => setShowLiabilityModal(true)}
           className="text-blue-400 hover:text-blue-300 underline mt-1 min-h-[44px] px-2"
