@@ -1,14 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { LaunchParams, UnitSystem, CalculatorParams, PredictionResult, WeatherData } from '../types/index';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { LaunchParams, UnitSystem, CalculatorParams, PredictionResult, WeatherData, APRSPosition } from '../types/index';
 import MissionPlanner from './MissionPlanner';
 import SafetyInfo from './SafetyInfo';
 import LeafletVisualization from './LeafletVisualization';
 import CalculatorTab from './CalculatorTab';
+import ErrorBoundary from './ErrorBoundary';
 import { ComprehensiveWeather } from '../types/index';
 import GlobeVisualization from './GlobeVisualization';
 import LivePredictionPanel from './LivePredictionPanel';
 import APRSService from '../services/aprsService';
 import { getCacheStats } from '../services/elevationService';
+import { AlgorithmComparisonPanel } from './AlgorithmComparisonPanel';
 
 interface TabbedInterfaceProps {
   launchParams: LaunchParams;
@@ -53,7 +55,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
 
   const handleTabClick = (tabId: string) => {
     setActiveTab(tabId);
-    setTabSwitchCount(c => c + 1);
+    setTabSwitchCount((c: number) => c + 1);
     if (tabId === 'mission' && mapResizeRef.current) {
       setTimeout(() => mapResizeRef.current?.(), 100);
     }
@@ -76,6 +78,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
     { id: '3d', label: '3D View', icon: '🌍' },
     { id: 'safety', label: 'Prelaunch Communication', icon: '🛡️' },
     { id: 'details', label: 'Flight Details', icon: '📊' },
+    { id: 'comparison', label: 'Algorithm Comparison', icon: '📈' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
@@ -117,16 +120,18 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
       case 'visualization':
         return prediction ? (
           <div className="min-h-[700px] max-h-[90vh] overflow-auto">
-            <LeafletVisualization 
-              result={prediction} 
-              mapResizeRef={leafletMapResizeRef}
-              launchWeather={launchWeather}
-              launchParams={launchParams}
-              prediction={prediction}
-              unitSystem={unitSystem}
-              error={error}
-              tabSwitchCount={tabSwitchCount}
-            />
+            <ErrorBoundary>
+              <LeafletVisualization 
+                result={prediction} 
+                mapResizeRef={leafletMapResizeRef}
+                launchWeather={launchWeather}
+                launchParams={launchParams}
+                prediction={prediction}
+                unitSystem={unitSystem}
+                error={error}
+                tabSwitchCount={tabSwitchCount}
+              />
+            </ErrorBoundary>
           </div>
         ) : (
           <div className="text-center py-12 text-gray-400">
@@ -173,7 +178,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Location:</span>
-                      <span>{prediction.launchPoint.lat.toFixed(4)}°, {prediction.launchPoint.lon.toFixed(4)}°</span>
+                      <span>{prediction?.launchPoint?.lat?.toFixed(4) || 'N/A'}°, {prediction?.launchPoint?.lon?.toFixed(4) || 'N/A'}°</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Launch Time:</span>
@@ -190,7 +195,7 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Location:</span>
-                      <span>{prediction.landingPoint.lat.toFixed(4)}°, {prediction.landingPoint.lon.toFixed(4)}°</span>
+                      <span>{prediction?.landingPoint?.lat?.toFixed(4) || 'N/A'}°, {prediction?.landingPoint?.lon?.toFixed(4) || 'N/A'}°</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Flight Duration:</span>
@@ -251,6 +256,13 @@ const TabbedInterface: React.FC<TabbedInterfaceProps> = ({
             <div className="text-6xl mb-4">📊</div>
             <h3 className="text-xl font-semibold mb-2">Flight Details</h3>
             <p>Run a prediction first to view detailed flight information</p>
+          </div>
+        );
+      
+      case 'comparison':
+        return (
+          <div className="space-y-6">
+            <AlgorithmComparisonPanel />
           </div>
         );
       
@@ -413,34 +425,17 @@ const SettingsTab: React.FC = () => {
   );
 };
 
-// Try to load api.keys from the project root (for local dev convenience)
-let fileApiKey = '';
-try {
-  // @ts-ignore
-  if (typeof window === 'undefined') {
-    // Node.js context (e.g., SSR or build)
-    const fs = require('fs');
-    if (fs.existsSync('./api.keys')) {
-      const lines = fs.readFileSync('./api.keys', 'utf-8').split('\n');
-      for (const line of lines) {
-        const [key, value] = line.split('=');
-        if (key && value && key.trim() === 'APRS_FI_API_KEY') {
-          fileApiKey = value.trim();
-        }
-      }
-    }
-  }
-} catch {}
+// Note: API keys should be managed through environment variables or settings UI
 
 const APRSTrackingPanel: React.FC = () => {
   const [callsign, setCallsign] = useState('');
-  const [positions, setPositions] = useState<any[]>([]);
+  const [positions, setPositions] = useState<APRSPosition[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [map, setMap] = useState<any>(null);
   const mapRef = useRef<HTMLDivElement>(null);
-  // Prefer fileApiKey if present, else localStorage
-  const apiKey = fileApiKey || localStorage.getItem('aprsFiApiKey') || '';
+  // Get API key from localStorage
+  const apiKey = localStorage.getItem('aprsFiApiKey') || '';
 
   // Load last used callsign
   useEffect(() => {
@@ -449,7 +444,7 @@ const APRSTrackingPanel: React.FC = () => {
   }, []);
 
   // Fetch APRS positions
-  const fetchPositions = async () => {
+  const fetchPositions = useCallback(async () => {
     if (!APRSService.isValidCallsign(callsign)) {
       setError('Please enter a valid APRS callsign (e.g., N0CALL-9).');
       setPositions([]);
@@ -493,12 +488,12 @@ const APRSTrackingPanel: React.FC = () => {
         setError('No recent positions found for this callsign.');
         setPositions([]);
       }
-    } catch (e) {
+    } catch {
       setError('Failed to fetch APRS data.');
       setPositions([]);
     }
     setLoading(false);
-  };
+  }, [callsign, apiKey, map]);
 
   // Auto-refresh every 30s
   useEffect(() => {
@@ -506,7 +501,7 @@ const APRSTrackingPanel: React.FC = () => {
     fetchPositions();
     const interval = setInterval(() => fetchPositions(), 30000);
     return () => clearInterval(interval);
-  }, [callsign, apiKey]);
+  }, [callsign, apiKey, fetchPositions]);
 
   // Load Leaflet if not present
   useEffect(() => {
@@ -520,7 +515,7 @@ const APRSTrackingPanel: React.FC = () => {
       link.href = 'https://unpkg.com/leaflet/dist/leaflet.css';
       document.head.appendChild(link);
     }
-  }, []);
+  }, [fetchPositions]);
 
   return (
     <div className="bg-gray-900 rounded-lg p-6 border border-gray-700 mt-6">

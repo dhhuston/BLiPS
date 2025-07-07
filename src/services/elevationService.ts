@@ -156,7 +156,7 @@ function cleanupCache(): void {
             localStorage.removeItem(key);
             cleanedCount++;
           }
-        } catch (error) {
+        } catch {
           // Remove invalid cache entries
           localStorage.removeItem(key);
           cleanedCount++;
@@ -359,60 +359,73 @@ export function analyzeTerrainGrid(grid: number[][]): {
 }
 
 /**
- * Find the nearest road point to given coordinates using OpenStreetMap Nominatim API
+ * Find the nearest road or trail to given coordinates using OpenStreetMap Nominatim API
+ * Expands the search radius until a road or trail is found, up to 10km.
+ * If a trail is found, also finds the nearest road to the trailhead.
  * @param lat Latitude
  * @param lon Longitude
- * @returns Promise with road coordinates and distance, or null if not found
+ * @returns Promise with road/trail coordinates, type, and trailhead road if applicable
  */
 export async function findNearestRoad(lat: number, lon: number): Promise<{
   roadLat: number;
   roadLon: number;
   distance: number;
   roadName?: string;
+  type: 'road';
 } | null> {
-  try {
-    // Use Nominatim API to find nearest road
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&extratags=1&namedetails=1&zoom=16&layer=transportation`,
-      {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'BLiPS-Balloon-Prediction/1.0'
-        },
+  let radius = 200; // meters
+  const maxRadius = 10000; // 10km
+  while (radius <= maxRadius) {
+    try {
+      // Overpass QL query for nearest highway, fetch all nodes
+      const query = `[out:json];way(around:${radius},${lat},${lon})[highway];out body;>;out skel qt;`;
+      const resp = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.elements && data.elements.length > 0) {
+          // Separate ways and nodes
+          const ways = data.elements.filter((el: { type: string }) => el.type === 'way');
+          const nodes = data.elements.filter((el: { type: string }) => el.type === 'node');
+          // Build a map of node id to coordinates
+          const nodeMap: Record<string, { lat: number; lon: number }> = {};
+          for (const node of nodes) {
+            nodeMap[node.id] = { lat: node.lat, lon: node.lon };
+          }
+          // For each way, find the closest node to the target point
+          let minDist = Infinity;
+          let best = null;
+          for (const way of ways) {
+            if (!way.nodes || way.nodes.length === 0) continue;
+            for (const nodeId of way.nodes) {
+              const coord = nodeMap[nodeId];
+              if (!coord) continue;
+              const dist = haversine(lat, lon, coord.lat, coord.lon);
+              if (dist < minDist) {
+                minDist = dist;
+                best = {
+                  roadLat: coord.lat,
+                  roadLon: coord.lon,
+                  distance: dist,
+                  roadName: way.tags && (way.tags.name || way.tags.ref || way.tags.highway) || 'Unknown Road',
+                  type: 'road' as const
+                };
+              }
+            }
+          }
+          if (best) return best;
+        }
       }
-    );
-
-    if (!response.ok) {
-      console.warn('Road finding API unavailable');
-      return null;
+    } catch {
+      // Ignore and try next radius
     }
-
-    const data = await response.json();
-    
-    if (data.error) {
-      console.warn('No road found near coordinates:', data.error);
-      return null;
-    }
-
-    // Extract road information
-    const roadLat = parseFloat(data.lat);
-    const roadLon = parseFloat(data.lon);
-    const roadName = data.address?.road || data.address?.highway || 'Unknown Road';
-    
-    // Calculate distance to the road point
-    const distance = haversine(lat, lon, roadLat, roadLon);
-    
-    return {
-      roadLat,
-      roadLon,
-      distance,
-      roadName
-    };
-  } catch (error) {
-    console.warn('Failed to find nearest road:', error);
-    return null;
+    radius *= 2;
   }
+  console.warn('[findNearestRoad] No road found near', lat, lon, 'after searching up to', maxRadius, 'meters');
+  return null;
 }
 
 /**

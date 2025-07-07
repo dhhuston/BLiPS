@@ -102,7 +102,7 @@ export const usePrediction = () => {
         setError("No weather forecast available for the selected launch time. Please try a different time.");
       }
 
-      const result = runPredictionSimulation(params, fetchedWeatherData);
+      const result = await runPredictionSimulation(params, fetchedWeatherData);
       setPrediction(result);
     } catch (e: unknown) {
       if (e instanceof Error) {

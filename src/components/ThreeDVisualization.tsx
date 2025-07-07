@@ -14,11 +14,12 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({ prediction, u
   const cameraRef = useRef<any>(null);
   const controlsRef = useRef<any>(null);
   const trajectoryPointsRef = useRef<any[]>([]);
+  const threeRef = useRef<any>(null);
 
   // Helper to reset camera view
   const resetView = () => {
-    if (!cameraRef.current || !controlsRef.current || !trajectoryPointsRef.current.length) return;
-    const THREE = require('three');
+    if (!cameraRef.current || !controlsRef.current || !trajectoryPointsRef.current.length || !threeRef.current) return;
+    const THREE = threeRef.current;
     const box = new THREE.Box3().setFromPoints(trajectoryPointsRef.current);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
@@ -40,6 +41,7 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({ prediction, u
     // Dynamically import Three.js to avoid SSR issues
     const initThreeJS = async () => {
       const THREE = await import('three');
+      threeRef.current = THREE;
       const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
 
       // Clean up previous scene
@@ -106,7 +108,7 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({ prediction, u
       scene.add(gridHelper);
 
       // Flight trajectory
-      const trajectoryPoints: any[] = [];
+      const trajectoryPoints: InstanceType<typeof THREE.Vector3>[] = [];
       const isImperial = unitSystem === 'imperial';
       prediction.path.forEach((point) => {
         // Scale coordinates for better visualization

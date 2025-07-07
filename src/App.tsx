@@ -4,6 +4,7 @@ import { usePrediction } from './hooks/usePrediction';
 import Header from './components/Header';
 import TabbedInterface from './components/TabbedInterface';
 import LiabilityModal from './components/LiabilityModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import { getARTCC } from './services/atcService';
 import { initializeElevationCache } from './services/elevationService';
 
@@ -31,6 +32,7 @@ const App: React.FC = () => {
     ascentRate: 5,
     burstAltitude: 30000,
     descentRate: 6,
+    trackingCallsign: '',
   });
 
   const [calculatorParams, setCalculatorParams] = useState<CalculatorParams>({
@@ -49,7 +51,7 @@ const App: React.FC = () => {
   const [landingARTCC, setLandingARTCC] = useState<string | null>(null);
 
   useEffect(() => {
-    if (prediction) {
+    if (prediction && prediction.launchPoint && prediction.landingPoint) {
       const launchCenter = getARTCC(prediction.launchPoint.lat, prediction.launchPoint.lon);
       const landingCenter = getARTCC(prediction.landingPoint.lat, prediction.landingPoint.lon);
       setLaunchARTCC(launchCenter);
@@ -124,29 +126,32 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 font-sans">
       <Header 
+        className="sticky top-0 z-50 bg-gray-900 shadow"
         unitSystem={unitSystem} 
         setUnitSystem={setUnitSystem}
         onSave={handleSaveConfig}
         onLoad={handleLoadConfig}
         onLiabilityClick={() => setShowLiabilityModal(true)}
       />
-      <main className="p-2 sm:p-4 lg:p-8">
+      <main className="pt-20 p-2 sm:p-4 lg:p-8">
         <div className="max-w-7xl mx-auto">
-          <TabbedInterface
-            launchParams={launchParams}
-            setLaunchParams={setLaunchParams}
-            calculatorParams={calculatorParams}
-            setCalculatorParams={setCalculatorParams}
-            onPredict={handlePredict}
-            isLoading={isLoading}
-            unitSystem={unitSystem}
-            launchWeather={launchWeather}
-            prediction={prediction}
-            error={error}
-            launchARTCC={launchARTCC}
-            landingARTCC={landingARTCC}
-            weatherData={weatherData}
-          />
+          <ErrorBoundary>
+            <TabbedInterface
+              launchParams={launchParams}
+              setLaunchParams={setLaunchParams}
+              calculatorParams={calculatorParams}
+              setCalculatorParams={setCalculatorParams}
+              onPredict={handlePredict}
+              isLoading={isLoading}
+              unitSystem={unitSystem}
+              launchWeather={launchWeather}
+              prediction={prediction}
+              error={error}
+              launchARTCC={launchARTCC}
+              landingARTCC={landingARTCC}
+              weatherData={weatherData}
+            />
+          </ErrorBoundary>
         </div>
       </main>
       <footer className="text-center p-4 text-gray-500 text-sm">

@@ -34,6 +34,7 @@ export interface LaunchParams {
   ascentRate: number; // m/s
   burstAltitude: number; // meters
   descentRate: number; // m/s
+  trackingCallsign?: string; // APRS or other tracking callsign
 }
 
 export interface FlightPoint {
@@ -243,4 +244,30 @@ export interface DummyFlightConfig {
     lastBeaconTime?: number; // Unix timestamp of last beacon
     assumedLanded?: boolean; // When beacon is lost at low altitude
     assumedLandingLocation?: { lat: number; lng: number; time: number }; // Predicted landing location
+}
+
+export interface SimulationMetrics {
+    currentAltitude: number;
+    currentSpeed: number;
+    currentCourse: number;
+    ascentRate: number;
+    descentRate: number;
+    burstAltitude?: number;
+    burstTime?: number;
+    landingTime?: number;
+    totalDistance: number;
+    maxAltitude: number;
+    flightPhase: 'ascent' | 'burst' | 'descent' | 'landed';
+    weatherConditions: {
+        temperature: number;
+        pressure: number;
+        windSpeed: number;
+        windDirection: number;
+        humidity: number;
+    };
+    deviations: {
+        fromPredictedAltitude: number;
+        fromPredictedPosition: number;
+        fromPredictedTime: number;
+    };
 }

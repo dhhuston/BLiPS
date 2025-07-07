@@ -6,12 +6,14 @@ import {
   LaunchParams, 
   PredictionResult, 
   WeatherData,
-  DummyFlightConfig
+  DummyFlightConfig,
+  SimulationMetrics
 } from '../types/index';
 import { createLivePredictionComparison } from '../services/liveAnalysisService';
-import { DummyFlightSimulator, createDummyFlightSimulator } from '../services/dummyFlightSimulator';
+import { createDummyFlightSimulator } from '../services/dummyFlightSimulator';
 import { metersToFeet } from '../constants/index';
 import LandingPredictionMap from './LandingPredictionMap';
+import EnhancedSimulationPanel from './EnhancedSimulationPanel';
 
 interface LivePredictionPanelProps {
   originalPrediction: PredictionResult;
@@ -29,7 +31,6 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
   aprsPositions = []
 }) => {
   const [liveComparison, setLiveComparison] = useState<LivePredictionComparison | null>(null);
-  const [dummySimulator, setDummySimulator] = useState<DummyFlightSimulator | null>(null);
   const [dummyConfig, setDummyConfig] = useState<DummyFlightConfig>({
     enabled: false,
     scenario: 'standard',
@@ -41,49 +42,54 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
   const [simulationSpeed, setSimulationSpeed] = useState(1); // 1x = real-time
   const [simulationTime, setSimulationTime] = useState(0);
   const [nextBeaconCountdown, setNextBeaconCountdown] = useState(0);
-  const [dataSource, setDataSource] = useState<'simulation' | 'aprs'>('simulation');
+  const [dataSource, setDataSource] = useState<'simulation' | 'enhanced' | 'aprs'>('enhanced');
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isImperial = unitSystem === 'imperial';
 
-  // Initialize dummy simulator
-  useEffect(() => {
-    if (originalPrediction && launchParams) {
-      const simulator = createDummyFlightSimulator(launchParams, originalPrediction, dummyConfig, weatherData);
-      setDummySimulator(simulator);
-    }
-  }, [originalPrediction, launchParams, weatherData]);
-
   // State to store current positions
   const [currentPositions, setCurrentPositions] = useState<APRSPosition[]>([]);
+  const [simulationMetrics, setSimulationMetrics] = useState<SimulationMetrics | null>(null);
 
-  // Update positions when dependencies change
+  // Memoize dummySimulator so it is stable and only recreated when dependencies change
+  const dummySimulator = React.useMemo(() => {
+    if (originalPrediction && launchParams) {
+      return createDummyFlightSimulator(launchParams, originalPrediction, dummyConfig, weatherData);
+    }
+    return null;
+  }, [originalPrediction, launchParams, dummyConfig, weatherData]);
+
+  // Update positions when dependencies change with debouncing for simulation
   useEffect(() => {
     const updatePositions = async () => {
       if (dataSource === 'aprs') {
-        // Use real APRS data from aprs.fi for the callsign
         setCurrentPositions(aprsPositions);
       } else if (dataSource === 'simulation' && dummyConfig.enabled) {
-        // Use dummy simulation data
         if (dummySimulator) {
           const positions = await dummySimulator.generatePositions();
-          
-          // Debug log to verify position stability
-          if (positions.length > 0 && process.env.NODE_ENV === 'development') {
-            const latest = positions[positions.length - 1];
-            console.log(`[${simulationTime}s] Generated ${positions.length} positions, latest: Alt=${latest.altitude?.toFixed(1)}m, Lat=${latest.lat.toFixed(6)}`);
-          }
-          
-          setCurrentPositions(positions);
+          // Filter out invalid positions to prevent map issues
+          const validPositions = positions.filter(pos => 
+            pos && 
+            typeof pos.lat === 'number' && !isNaN(pos.lat) && pos.lat >= -90 && pos.lat <= 90 &&
+            typeof pos.lng === 'number' && !isNaN(pos.lng) && pos.lng >= -180 && pos.lng <= 180 &&
+            typeof pos.altitude === 'number' && !isNaN(pos.altitude) && pos.altitude >= 0
+          );
+          setCurrentPositions(validPositions);
         }
+      } else if (dataSource === 'enhanced') {
+        // Enhanced simulation is handled by EnhancedSimulationPanel
+        // Positions are updated via onPositionsUpdate callback
       } else {
         setCurrentPositions([]);
       }
     };
 
-    updatePositions();
-  }, [dataSource, aprsPositions, dummyConfig.enabled, simulationTime, dummySimulator]);
+    // Add slight debouncing to prevent excessive updates during simulation
+    const timeoutId = setTimeout(updatePositions, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [dataSource, aprsPositions, dummyConfig.enabled, dummySimulator]);
 
   // Track last processed position to prevent unnecessary recalculations
   const lastProcessedPositionRef = useRef<APRSPosition | null>(null);
@@ -131,7 +137,7 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
       currentTime: Date.now() / 1000
     };
     
-    setDummyConfig(config);
+    setDummyConfig((prev: DummyFlightConfig) => ({ ...prev, enabled: true }));
     dummySimulator.updateConfig(config);
     setSimulationTime(0);
 
@@ -141,7 +147,7 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
     setNextBeaconCountdown(config.beaconInterval / simulationSpeed);
     
     intervalRef.current = setInterval(() => {
-      setSimulationTime(prev => {
+      setSimulationTime((prev: number) => {
         const newTime = prev + config.beaconInterval; // Always advance by beacon interval in simulation time
         const currentTime = config.startTime + newTime;
         
@@ -159,12 +165,17 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
       });
       
       // Reset countdown after each beacon
-      setNextBeaconCountdown(config.beaconInterval / simulationSpeed);
+      setNextBeaconCountdown((prev: number) => {
+        if (prev <= 1) {
+          return config.beaconInterval / simulationSpeed; // Reset to full interval
+        }
+        return prev - 1;
+      });
     }, simulationInterval);
 
     // Start countdown timer that updates every second (adjusted for simulation speed)
     countdownRef.current = setInterval(() => {
-      setNextBeaconCountdown(prev => {
+      setNextBeaconCountdown((prev: number) => {
         if (prev <= 1) {
           return config.beaconInterval / simulationSpeed; // Reset to full interval
         }
@@ -182,7 +193,7 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
       clearInterval(countdownRef.current);
       countdownRef.current = null;
     }
-    setDummyConfig(prev => ({ ...prev, enabled: false }));
+    setDummyConfig((prev: DummyFlightConfig) => ({ ...prev, enabled: false }));
     setSimulationTime(0);
     setNextBeaconCountdown(0);
   };
@@ -193,7 +204,7 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
     setSimulationSpeed(1); // Reset to real-time
     
     // Clear assumed landing state
-    setDummyConfig(prev => ({
+    setDummyConfig((prev: DummyFlightConfig) => ({
       ...prev,
       assumedLanded: false,
       assumedLandingLocation: undefined,
@@ -244,6 +255,14 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
     return `${ms.toFixed(1)}m/s`;
   };
 
+  const formatSpeed = (mps: number): string => {
+    if (isImperial) {
+      const mph = mps * 2.23694;
+      return `${mph.toFixed(1)} mph`;
+    }
+    return `${mps.toFixed(1)} m/s`;
+  };
+
   const getAccuracyColor = (accuracy: number): string => {
     if (accuracy >= 0.8) return 'text-green-400';
     if (accuracy >= 0.6) return 'text-yellow-400';
@@ -270,12 +289,23 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
             <input
               type="radio"
               name="dataSource"
-              value="simulation"
-              checked={dataSource === 'simulation'}
-              onChange={(e) => setDataSource(e.target.value as 'simulation' | 'aprs')}
+              value="enhanced"
+              checked={dataSource === 'enhanced'}
+              onChange={(e) => setDataSource(e.target.value as 'simulation' | 'enhanced' | 'aprs')}
               className="w-4 h-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500"
             />
-            <span className="text-white font-medium">Simulation</span>
+            <span className="text-white font-medium">Enhanced Simulation</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="dataSource"
+              value="simulation"
+              checked={dataSource === 'simulation'}
+              onChange={(e) => setDataSource(e.target.value as 'simulation' | 'enhanced' | 'aprs')}
+              className="w-4 h-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500"
+            />
+            <span className="text-white font-medium">Basic Simulation</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -283,19 +313,33 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
               name="dataSource"
               value="aprs"
               checked={dataSource === 'aprs'}
-              onChange={(e) => setDataSource(e.target.value as 'simulation' | 'aprs')}
+              onChange={(e) => setDataSource(e.target.value as 'simulation' | 'enhanced' | 'aprs')}
               className="w-4 h-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500"
             />
             <span className="text-white font-medium">APRS.fi</span>
           </label>
         </div>
         <p className="text-sm text-gray-400">
-          {dataSource === 'simulation' 
-            ? 'Use dummy simulation data to test live prediction features'
+          {dataSource === 'enhanced' 
+            ? 'Use advanced simulation with realistic physics and weather modeling'
+            : dataSource === 'simulation'
+            ? 'Use basic dummy simulation data to test live prediction features'
             : 'Use real-time APRS data from aprs.fi for actual flights'
           }
         </p>
       </div>
+
+      {/* Enhanced Simulation Controls */}
+      {dataSource === 'enhanced' && (
+        <EnhancedSimulationPanel
+          launchParams={launchParams}
+          originalPrediction={originalPrediction}
+          weatherData={weatherData}
+          unitSystem={unitSystem}
+          onPositionsUpdate={setCurrentPositions}
+          onMetricsUpdate={setSimulationMetrics}
+        />
+      )}
 
       {/* Dummy Simulation Controls */}
       {dataSource === 'simulation' && (
@@ -310,7 +354,7 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
               <label className="block text-sm font-medium text-gray-400 mb-1">Scenario</label>
               <select
                 value={dummyConfig.scenario}
-                onChange={(e) => setDummyConfig(prev => ({ ...prev, scenario: e.target.value as any }))}
+                onChange={(e) => setDummyConfig((prev: DummyFlightConfig) => ({ ...prev, scenario: e.target.value as any }))}
                 className="w-full bg-gray-700 border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
                 disabled={dummyConfig.enabled}
               >
@@ -326,7 +370,7 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
               <label className="block text-sm font-medium text-gray-400 mb-1">Beacon Interval</label>
               <select
                 value={dummyConfig.beaconInterval}
-                onChange={(e) => setDummyConfig(prev => ({ ...prev, beaconInterval: parseInt(e.target.value) }))}
+                onChange={(e) => setDummyConfig((prev: DummyFlightConfig) => ({ ...prev, beaconInterval: parseInt(e.target.value) }))}
                 className="w-full bg-gray-700 border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
                 disabled={dummyConfig.enabled}
               >
@@ -447,6 +491,67 @@ const LivePredictionPanel: React.FC<LivePredictionPanelProps> = ({
             </div>
             <div className="text-xs text-gray-500">
               APRS data is automatically fetched for the callsign specified in your mission parameters.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enhanced Simulation Metrics */}
+      {dataSource === 'enhanced' && simulationMetrics && (
+        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+          <h4 className="text-lg font-semibold mb-3 text-cyan-300">📊 Enhanced Simulation Analysis</h4>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-cyan-400">
+                {formatAltitude(simulationMetrics.currentAltitude)}
+              </div>
+              <div className="text-xs text-gray-400">Current Altitude</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-400">
+                {formatSpeed(simulationMetrics.currentSpeed)}
+              </div>
+              <div className="text-xs text-gray-400">Current Speed</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-400">
+                {simulationMetrics.currentCourse.toFixed(0)}°
+              </div>
+              <div className="text-xs text-gray-400">Course</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-400">
+                {formatDistance(simulationMetrics.totalDistance)}
+              </div>
+              <div className="text-xs text-gray-400">Total Distance</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h6 className="text-sm font-medium text-gray-300 mb-2">Flight Performance</h6>
+              <div className="space-y-1 text-sm text-gray-400">
+                <div>Ascent Rate: {formatSpeed(simulationMetrics.ascentRate)}</div>
+                <div>Descent Rate: {formatSpeed(simulationMetrics.descentRate)}</div>
+                <div>Max Altitude: {formatAltitude(simulationMetrics.maxAltitude)}</div>
+                {simulationMetrics.burstAltitude && (
+                  <div>Burst Altitude: {formatAltitude(simulationMetrics.burstAltitude)}</div>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <h6 className="text-sm font-medium text-gray-300 mb-2">Weather Conditions</h6>
+              <div className="space-y-1 text-sm text-gray-400">
+                <div>Temperature: {simulationMetrics.weatherConditions.temperature.toFixed(1)}°C</div>
+                <div>Pressure: {simulationMetrics.weatherConditions.pressure.toFixed(0)} hPa</div>
+                <div>Wind: {simulationMetrics.weatherConditions.windSpeed.toFixed(1)} m/s @ {simulationMetrics.weatherConditions.windDirection.toFixed(0)}°</div>
+                <div>Humidity: {simulationMetrics.weatherConditions.humidity.toFixed(0)}%</div>
+              </div>
             </div>
           </div>
         </div>

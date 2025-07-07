@@ -263,9 +263,11 @@ export const runPredictionSimulation = async (params: LaunchParams, weatherData:
  * @param balloonWeight Balloon weight in grams
  * @returns Burst radius in meters
  */
+/*
 function calculateBurstRadius(balloonWeight: number): number {
   return BURST_RADIUS_COEFFICIENT * Math.pow(balloonWeight, BURST_RADIUS_EXPONENT);
 }
+*/
 
 export const calculateFlightPerformance = (
   params: CalculatorParams,

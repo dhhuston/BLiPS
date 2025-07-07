@@ -34,30 +34,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - N/A
 
-## [0.9.10] - 2024-12-19
+## [0.9.10] - 2025-07-07
 
 ### Added
-- **Elevation Caching System:** Comprehensive localStorage-based caching for elevation data to reduce API calls and improve performance
-- **Cache Statistics Display:** Added cache performance metrics to Settings tab showing cached points, grids, and total size
-- **Automatic Cache Management:** 24-hour cache expiration with automatic cleanup on startup and hourly intervals
-- **Coordinate Precision Matching:** Smart coordinate rounding to prevent excessive cache entries for nearby locations
-- **Cache Initialization:** Automatic cache system startup with periodic cleanup intervals
-- **Performance Monitoring:** Cache statistics tracking for debugging and user awareness
+- **Error Boundary Component:** Added a reusable React ErrorBoundary for improved error handling and user feedback in the UI.
+- **Tracking Callsign Field:** Added tracking callsign field to LaunchParams and MissionPlanner interface for APRS tracking integration.
+- **Enhanced Landing Point Information:** Added detailed popups for launch, burst, and landing points with terrain analysis and flight metrics.
+- **Improved Landing Time Calculation:** Fixed landing time calculation to properly use launch time + flight duration for weather queries.
+- **Enhanced Simulation System:** Added advanced enhanced flight simulator with realistic physics, scenario management, and weather integration.
+- **TODO Planning:** Updated TODO.md with comprehensive checklist items for tracking callsign field, landing time/weather accuracy, and landing terrain/road markers.
 
 ### Changed
-- **Elevation Service:** Enhanced with caching layer for both single point and grid elevation requests
-- **Settings Interface:** Added cache statistics section with visual metrics and performance information
-- **App Initialization:** Integrated elevation cache system startup in main App component
-
-### Technical Improvements
-- **API Call Reduction:** Significant reduction in elevation API calls through intelligent caching
-- **Performance Optimization:** Faster prediction calculations using cached elevation data
-- **Storage Management:** Automatic cleanup prevents localStorage bloat from expired cache entries
-- **Error Handling:** Graceful fallback when cache operations fail
+- **Null Safety:** Improved null checks throughout the codebase to prevent runtime errors when prediction data is missing or incomplete.
+- **Error Handling:** Wrapped main app and visualization components with ErrorBoundary for graceful error recovery.
+- **Code Quality:** Massive linter cleanup across the entire codebase with professional-grade improvements.
 
 ### Fixed
-- **Prediction Performance:** Improved response times for repeated predictions in same geographic areas
-- **API Rate Limiting:** Reduced load on elevation APIs through effective caching strategy
+- **TypeScript Errors:** Resolved all outstanding TypeScript and linter errors, including async/await issues and unused imports.
+- **Runtime Crashes:** Fixed crashes related to accessing properties of undefined/null objects in prediction and visualization components.
+- **Landing Time Calculation:** Fixed landing time calculation in weather service to properly use launch time + flight duration instead of raw prediction timestamps.
+- **Map Rendering:** Fixed invalid LatLng objects causing map crashes by ensuring proper longitude/latitude mappings throughout the codebase.
+- **Linter Warnings:** Comprehensive cleanup reducing codebase from ~100+ warnings to ~38 warnings:
+  - Replaced 'any' types with proper TypeScript interfaces across 8+ files
+  - Removed unused variables and imports throughout the codebase
+  - Fixed React hook dependencies (useEffect, useCallback) in multiple components
+  - Replaced forbidden require() imports with ES modules
+  - Eliminated empty catch blocks with unused error parameters
+  - Improved test mocks with proper React.ReactNode types
+  - Added missing type imports and proper error handling
+  - Enhanced Three.js dynamic imports with better type safety
+
+### Technical Improvements
+- **Code Maintainability:** Significantly improved TypeScript practices and code organization
+- **Test Quality:** Enhanced test files with proper typing and mock implementations
+- **Type Safety:** Strengthened type definitions across flight simulators and UI components
+- **Import Standards:** Standardized ES module imports throughout the application
+- **Error Handling:** Improved exception handling patterns across services and components
 
 ## [0.9.9] - 2024-07-07
 

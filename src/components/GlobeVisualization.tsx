@@ -12,26 +12,11 @@ const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
   const cesiumContainer = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   
-  // Early return after hooks
-  if (!result) {
-    return (
-      <div className="h-full flex items-center justify-center text-gray-400">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🌍</div>
-          <h3 className="text-xl font-semibold mb-2">3D Globe View</h3>
-          <p>Run a prediction first to view the 3D trajectory</p>
-        </div>
-      </div>
-    );
-  }
-
-  const { path, launchPoint, burstPoint, landingPoint } = result;
-
   // Load Cesium Ion access token from localStorage (for Tauri) or window/global
   let cesiumToken = '';
   try {
     if (typeof window !== 'undefined') {
-      cesiumToken = localStorage.getItem('cesiumIonAccessToken') || (window as any).CESIUM_ION_ACCESS_TOKEN || '';
+      cesiumToken = localStorage.getItem('cesiumIonAccessToken') || (window as unknown as { CESIUM_ION_ACCESS_TOKEN?: string })?.CESIUM_ION_ACCESS_TOKEN || '';
     }
   } catch {
     // Ignore errors
@@ -69,7 +54,7 @@ const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
     const viewer = viewerRef.current;
     if (!viewer || !result) return;
     viewer.entities.removeAll();
-    const pathPositions = path.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.altitude));
+    const pathPositions = result.path.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.altitude));
     viewer.entities.add({
       name: 'Flight Path',
       polyline: {
@@ -92,9 +77,9 @@ const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
       }
     });
     const keyPoints = [
-      { point: launchPoint, color: '#34d399', icon: LaunchIcon, name: 'Launch' },
-      { point: burstPoint, color: '#f87171', icon: BurstIcon, name: 'Burst' },
-      { point: landingPoint, color: '#60a5fa', icon: LandingIcon, name: 'Landing' },
+      { point: result.launchPoint, color: '#34d399', icon: LaunchIcon, name: 'Launch' },
+      { point: result.burstPoint, color: '#f87171', icon: BurstIcon, name: 'Burst' },
+      { point: result.landingPoint, color: '#60a5fa', icon: LandingIcon, name: 'Landing' },
     ];
     keyPoints.forEach(({ point, color, icon, name }) => {
         const position = Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.altitude);
@@ -127,7 +112,20 @@ const GlobeVisualization: React.FC<GlobeVisualizationProps> = ({ result }) => {
         duration: 2.0
       });
     }
-  }, [result, path, launchPoint, burstPoint, landingPoint]);
+  }, [result, result.path, result.launchPoint, result.burstPoint, result.landingPoint]);
+
+  // Early return after hooks
+  if (!result) {
+    return (
+      <div className="h-full flex items-center justify-center text-gray-400">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🌍</div>
+          <h3 className="text-xl font-semibold mb-2">3D Globe View</h3>
+          <p>Run a prediction first to view the 3D trajectory</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: '100%', height: '100%', borderRadius: '0.5rem', position: 'relative' }}>

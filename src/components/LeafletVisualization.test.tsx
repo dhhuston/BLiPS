@@ -1,16 +1,17 @@
+import React from 'react';
 import { render, screen } from '@testing-library/react';
 import LeafletVisualization from './LeafletVisualization';
-import { PredictionResult, LaunchWeather } from '../types/index';
+import { PredictionResult, LaunchWeather, ComprehensiveWeather } from '../types/index';
 import { vi, describe, it, expect } from 'vitest';
 
 // Mock react-leaflet and leaflet to avoid map rendering issues
 vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }: any) => <div data-testid="mock-map">{children}</div>,
+  MapContainer: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-map">{children}</div>,
   TileLayer: () => <div data-testid="mock-tile" />,
   Polyline: () => <div data-testid="mock-polyline" />,
-  Marker: ({ children }: any) => <div data-testid="mock-marker">{children}</div>,
-  Tooltip: ({ children }: any) => <div data-testid="mock-tooltip">{children}</div>,
-  LayersControl: ({ children }: any) => <div data-testid="mock-layers">{children}</div>,
+  Marker: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-marker">{children}</div>,
+  Tooltip: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-tooltip">{children}</div>,
+  LayersControl: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-layers">{children}</div>,
   useMap: () => ({}),
 }));
 vi.mock('leaflet', () => ({
@@ -70,7 +71,7 @@ describe('LeafletVisualization Weather Display', () => {
     render(
       <LeafletVisualization
         result={mockPrediction}
-        launchWeather={{} as any}
+        launchWeather={{} as ComprehensiveWeather}
         unitSystem={"metric"}
       />
     );

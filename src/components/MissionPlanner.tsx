@@ -53,7 +53,6 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
   const [calculationDetails] = useState<CalculationBreakdown | null>(null);
   const [isCalcModalOpen, setIsCalcModalOpen] = useState(false);
 
-  const [aprsCallsign, setAprsCallsign] = useState('');
   const [isLoadingElevation, setIsLoadingElevation] = useState(false);
   const [groundElevation, setGroundElevation] = useState<number | null>(null);
 
@@ -85,20 +84,20 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
         if (field === 'launchAltitude' || field === 'burstAltitude') metricValue = feetToMeters(numericValue);
         if (field === 'ascentRate' || field === 'descentRate') metricValue = ftsToMs(numericValue);
     }
-    setParams(prev => ({ ...prev, [field]: metricValue }));
+    setParams((prev: LaunchParams) => ({ ...prev, [field]: metricValue }));
   };
   
 
 
   const handleMapChange = useCallback(async (lat: number, lon: number) => {
-    setParams(prev => ({ ...prev, lat, lon }));
+    setParams((prev: LaunchParams) => ({ ...prev, lat, lon }));
     
     // Fetch ground elevation for the selected location
     setIsLoadingElevation(true);
     try {
       const elevation = await getGroundElevation(lat, lon);
       setGroundElevation(elevation);
-      setParams(prev => ({ ...prev, launchAltitude: elevation }));
+      setParams((prev: LaunchParams) => ({ ...prev, launchAltitude: elevation }));
     } catch (error) {
       console.warn('Failed to fetch ground elevation:', error);
     } finally {
@@ -107,7 +106,7 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
   }, [setParams]);
   
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setParams(prev => ({ ...prev, launchTime: e.target.value }));
+    setParams((prev: LaunchParams) => ({ ...prev, launchTime: e.target.value }));
   };
 
 
@@ -134,11 +133,11 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-400">Launch Latitude</label>
-            <input type="number" value={params.lat} onChange={e => setParams(p => ({...p, lat: parseFloat(e.target.value) || 0}))} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
+            <input type="number" value={params.lat} onChange={e => setParams((p: LaunchParams) => ({...p, lat: parseFloat(e.target.value) || 0}))} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-400">Launch Longitude</label>
-            <input type="number" value={params.lon} onChange={e => setParams(p => ({...p, lon: parseFloat(e.target.value) || 0}))} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
+            <input type="number" value={params.lon} onChange={e => setParams((p: LaunchParams) => ({...p, lon: parseFloat(e.target.value) || 0}))} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"/>
           </div>
         </div>
 
@@ -225,24 +224,24 @@ const MissionPlanner: React.FC<MissionPlannerProps> = ({
       {/* Real-Time Tracking Section */}
       <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700 mt-8">
         <h2 className="text-xl font-semibold mb-4 text-cyan-300">Real-Time Tracking</h2>
-        <div className="space-y-2">
-            <label htmlFor="aprs-callsign" className="block text-sm font-medium text-gray-400">APRS Callsign</label>
+                    <div className="space-y-2">
+            <label htmlFor="aprs-callsign" className="block text-sm font-medium text-gray-400">Tracking Callsign</label>
             <div className="flex gap-2">
               <input 
                 id="aprs-callsign"
                 type="text" 
-                value={aprsCallsign}
-                onChange={e => setAprsCallsign(e.target.value.toUpperCase())}
+                value={params.trackingCallsign || ''}
+                onChange={e => setParams((prev: LaunchParams) => ({ ...prev, trackingCallsign: e.target.value.toUpperCase() }))}
                 placeholder="E.g., N0CALL-11"
                 className="block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
               />
               <a 
-                href={`https://aprs.fi/#!call=a%2F${aprsCallsign}`}
+                href={`https://aprs.fi/#!call=a%2F${params.trackingCallsign || ''}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-white transition-colors
-                  ${!aprsCallsign ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-500'}`}
-                onClick={e => !aprsCallsign && e.preventDefault()}
+                  ${!params.trackingCallsign ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-500'}`}
+                onClick={e => !params.trackingCallsign && e.preventDefault()}
               >
                 Track <ExternalLinkIcon />
               </a>

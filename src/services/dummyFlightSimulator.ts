@@ -1,4 +1,4 @@
-import { APRSPosition, DummyFlightConfig, LaunchParams, PredictionResult, WeatherData } from '../types';
+import { APRSPosition, DummyFlightConfig, LaunchParams, PredictionResult, WeatherData, FlightPoint } from '../types';
 import { altitudeToPressure } from './predictionService';
 import { PRESSURE_LEVELS, GROUND_WIND_SPEED_MS, GROUND_WIND_DIRECTION_DEG, JET_STREAM_ALTITUDE_M, EARTH_RADIUS_M } from '../constants';
 import { getGroundElevation } from './elevationService';
@@ -37,22 +37,35 @@ export class DummyFlightSimulator {
     const currentTime = this.config.currentTime;
     const startTime = this.config.startTime;
 
+    // If already landed, don't generate new positions
+    if (this.config.assumedLanded) {
+      return this.positions;
+    }
 
     // Clear existing positions and regenerate
     this.positions = [];
 
     // Generate positions at beacon intervals until assumed landing
-
     for (let time = startTime; time <= currentTime; time += this.config.beaconInterval) {
       const position = await this.generatePositionAtTime(time);
       if (position) {
         this.positions.push(position);
 
-        
         // Check if we should stop beaconing (simulate beacon loss at low altitude)
         if (this.shouldStopBeaconing(position, time)) {
           this.config.lastBeaconTime = time;
           this.checkForAssumedLanding(position, time);
+          break;
+        }
+
+        // Check for ground landing - if altitude is at ground level for multiple readings
+        if (this.isAtGroundLevel(position)) {
+          this.config.assumedLanded = true;
+          this.config.assumedLandingLocation = {
+            lat: position.lat,
+            lng: position.lng,
+            time: time
+          };
           break;
         }
       }
@@ -138,7 +151,7 @@ export class DummyFlightSimulator {
       const lonSeed = Math.sin(flightTime * 3.456) * Math.cos(flightTime * 2.987);
       
       noisyPoint.lat += latSeed * groundNoise * 0.000005; // ~0.5m noise
-      noisyPoint.lng += lonSeed * groundNoise * 0.000005;
+      noisyPoint.lon += lonSeed * groundNoise * 0.000005;
     }
 
     return {
@@ -156,7 +169,7 @@ export class DummyFlightSimulator {
    * Apply scenario-specific modifications to predicted points.
    * Handles early burst, wind shear, and other real-world effects.
    */
-  private applyScenarioModifications(point: any, flightTime: number): any {
+  private applyScenarioModifications(point: FlightPoint, flightTime: number): FlightPoint {
     const modified = { ...point };
 
     // Get actual wind conditions from weather data
@@ -306,13 +319,18 @@ export class DummyFlightSimulator {
     }
 
     // Apply realistic wind drift based on weather data (already calculated above)
-    modified.lat += windDrift.latDrift;
-    modified.lon += windDrift.lonDrift;
+    // Limit drift to prevent excessive position changes
+    const maxDrift = 0.001; // ~100m max drift per update
+    modified.lat += Math.max(-maxDrift, Math.min(maxDrift, windDrift.latDrift));
+    modified.lon += Math.max(-maxDrift, Math.min(maxDrift, windDrift.lonDrift));
     
-    // Apply atmospheric effects to all scenarios
-    modified.lat += atmosphericFactor.latDrift;
-    modified.lon += atmosphericFactor.lonDrift;
-    modified.altitude *= atmosphericFactor.pressureFactor;
+    // Apply atmospheric effects to all scenarios with limiting
+    modified.lat += Math.max(-maxDrift, Math.min(maxDrift, atmosphericFactor.latDrift));
+    modified.lon += Math.max(-maxDrift, Math.min(maxDrift, atmosphericFactor.lonDrift));
+    
+    // Ensure pressure factor doesn't cause extreme altitude changes
+    const pressureFactor = Math.max(0.95, Math.min(1.05, atmosphericFactor.pressureFactor));
+    modified.altitude *= pressureFactor;
 
     // Ensure altitude never goes negative or above reasonable limits
     modified.altitude = Math.max(0, Math.min(modified.altitude, 50000));
@@ -410,7 +428,7 @@ export class DummyFlightSimulator {
    * Calculate wind drift for a given point and wind data.
    * Used to simulate lateral movement due to wind.
    */
-  private calculateWindDrift(point: any, windData: { speed: number; direction: number }): { latDrift: number; lonDrift: number } {
+  private calculateWindDrift(point: FlightPoint, windData: { speed: number; direction: number }): { latDrift: number; lonDrift: number } {
     const TIME_STEP_S = this.config.beaconInterval; // Use beacon interval as time step
     const EARTH_RADIUS_M = 6371000;
     
@@ -431,7 +449,7 @@ export class DummyFlightSimulator {
   /**
    * Calculate realistic atmospheric effects
    */
-  private calculateAtmosphericEffects(altitudeKm: number, timeHours: number): any {
+  private calculateAtmosphericEffects(altitudeKm: number, timeHours: number): { latDrift: number; lonDrift: number; pressureFactor: number } {
     // Coriolis effect (very small but realistic)
     const coriolisEffect = Math.sin(this.launchParams.lat * Math.PI / 180) * 0.0001;
     
@@ -451,7 +469,7 @@ export class DummyFlightSimulator {
   /**
    * Calculate standard flight variations
    */
-  private calculateStandardVariations(flightTime: number): any {
+  private calculateStandardVariations(flightTime: number): { latOffset: number; lonOffset: number; altOffset: number } {
     // Small random variations that accumulate over time
     const timeVariation = Math.sin(flightTime / 300) * 0.00002; // 5-minute cycle
     const altitudeVariation = Math.cos(flightTime / 450) * 0.00001; // 7.5-minute cycle
@@ -475,36 +493,41 @@ export class DummyFlightSimulator {
    * Add realistic noise to a simulated point.
    * Noise is reduced for ground-level positions.
    */
-  private addRealisticNoise(point: any, flightTime: number): any {
-    const noiseLevel = this.config.noiseLevel;
+  private addRealisticNoise(point: FlightPoint, flightTime: number): FlightPoint {
+    const noiseLevel = this.config.noiseLevel * 0.5; // Reduce overall noise by 50%
     
     // GPS accuracy noise (decreases with altitude)
     const altitudeFactor = Math.min(1, point.altitude / 10000); // Better accuracy at higher altitudes
     const gpsNoise = (1 - altitudeFactor * 0.5) * noiseLevel;
     
-    // Deterministic noise based on time - use different seeds for each component
-    const latSeed = Math.sin(flightTime * 3.14159 + 1.23) * Math.cos(flightTime * 2.71828 + 4.56);
-    const lonSeed = Math.sin(flightTime * 1.41421 + 7.89) * Math.cos(flightTime * 1.73205 + 2.34);
-    const altSeed = Math.sin(flightTime * 2.23607 + 5.67) * Math.cos(flightTime * 1.61803 + 8.90);
+    // Use slower-changing functions to reduce jumpiness
+    const timeScale = flightTime / 120; // Scale down time for smoother variations
+    const latSeed = Math.sin(timeScale * 1.23) * Math.cos(timeScale * 0.89);
+    const lonSeed = Math.sin(timeScale * 1.41) * Math.cos(timeScale * 0.76);
+    const altSeed = Math.sin(timeScale * 1.67) * Math.cos(timeScale * 0.54);
     
-    // Position noise (meters)
-    const latNoise = latSeed * gpsNoise * 0.00001; // ~1m per 0.00001 degrees
-    const lonNoise = lonSeed * gpsNoise * 0.00001;
+    // Reduced position noise - more realistic GPS accuracy
+    const latNoise = latSeed * gpsNoise * 0.000005; // ~0.5m per 0.000005 degrees
+    const lonNoise = lonSeed * gpsNoise * 0.000005;
     
-    // Altitude noise (meters)
-    const altitudeNoise = altSeed * noiseLevel * 50; // Up to 50m noise
+    // Reduced altitude noise for more stable readings
+    const altitudeNoise = altSeed * noiseLevel * 20; // Reduced from 50m to 20m max noise
+    
+    // Apply hysteresis to prevent rapid changes
+    const dampingFactor = 0.7; // Reduce noise impact
     
     return {
-      lat: point.lat + latNoise,
-      lon: point.lon + lonNoise,
-      altitude: Math.max(0, point.altitude + altitudeNoise)
+      time: point.time,
+      lat: point.lat + latNoise * dampingFactor,
+      lon: point.lon + lonNoise * dampingFactor,
+      altitude: Math.max(0, point.altitude + altitudeNoise * dampingFactor)
     };
   }
 
   /**
    * Calculate realistic speed based on position and flight time
    */
-  private calculateSpeed(point: any, flightTime: number): number {
+  private calculateSpeed(point: FlightPoint, flightTime: number): number {
     // Simplified speed calculation
     if (flightTime < 60) return 0; // No speed data for first minute
     
@@ -523,7 +546,7 @@ export class DummyFlightSimulator {
   /**
    * Calculate course based on movement direction
    */
-  private calculateCourse(point: any, flightTime: number): number {
+  private calculateCourse(point: FlightPoint, flightTime: number): number {
     if (flightTime < 60) return 0;
     
     const prevPosition = this.positions[this.positions.length - 1];
@@ -538,7 +561,7 @@ export class DummyFlightSimulator {
   /**
    * Generate realistic APRS comment
    */
-  private generateComment(point: any, flightTime: number): string {
+  private generateComment(point: FlightPoint, flightTime: number): string {
     const phase = this.determineFlightPhase(point, flightTime);
     const battery = Math.max(20, 100 - (flightTime / 3600) * 10); // Battery decreases over time
     
@@ -548,7 +571,7 @@ export class DummyFlightSimulator {
   /**
    * Determine flight phase for comment generation
    */
-  private determineFlightPhase(point: any, flightTime: number): string {
+  private determineFlightPhase(point: FlightPoint, flightTime: number): string {
     if (flightTime < 300) return 'LAUNCH';
     if (point.altitude < 1000) return 'LANDED';
     if (flightTime > this.originalPrediction.burstPoint.time) return 'DESC';
@@ -616,7 +639,12 @@ export class DummyFlightSimulator {
     const altitude = lastPosition.altitude || 0;
     
     // Assume landed if at low altitude and missed 3+ beacon intervals
-    if (altitude < 1000 && missedBeacons >= 3) {
+    // OR if close to ground (< 500m) and missed 2+ beacon intervals
+    const lowAltitudeThreshold = altitude < 1000 && missedBeacons >= 3;
+    const veryLowAltitudeThreshold = altitude < 500 && missedBeacons >= 2;
+    const nearGroundThreshold = altitude < 200 && missedBeacons >= 1;
+    
+    if (lowAltitudeThreshold || veryLowAltitudeThreshold || nearGroundThreshold) {
       this.config.assumedLanded = true;
       
       // Use original prediction's landing point as the assumed location
@@ -647,6 +675,15 @@ export class DummyFlightSimulator {
    */
   updateConfig(updates: Partial<DummyFlightConfig>): void {
     this.config = { ...this.config, ...updates };
+  }
+
+  /**
+   * Check if the position is at ground level
+   */
+  private isAtGroundLevel(position: APRSPosition): boolean {
+    const altitude = position.altitude || 0;
+    // Consider landed if altitude is very low and likely at or near ground
+    return altitude < 100;
   }
 }
 

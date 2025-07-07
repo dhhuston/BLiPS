@@ -8,9 +8,10 @@ interface HeaderProps {
     onSave: () => void;
     onLoad: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onLiabilityClick: () => void;
+    className?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ unitSystem, setUnitSystem, onSave, onLoad, onLiabilityClick }) => {
+const Header: React.FC<HeaderProps> = ({ unitSystem, setUnitSystem, onSave, onLoad, onLiabilityClick, className }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleLoadClick = () => {
@@ -18,7 +19,7 @@ const Header: React.FC<HeaderProps> = ({ unitSystem, setUnitSystem, onSave, onLo
   };
 
   return (
-    <header className="p-3 sm:p-4 lg:p-6 border-b border-gray-700/50 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-20">
+    <header className={`p-3 sm:p-4 lg:p-6 border-b border-gray-700/50 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-20 ${className || ''}`}>
       <div className="max-w-screen-xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
         <div className="text-center sm:text-left">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">

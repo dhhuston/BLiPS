@@ -41,3 +41,40 @@ export const ftsToMs = (fts: number): number => fts / M_TO_FT;
 // Weight
 export const gToOz = (g: number): number => g * G_TO_OZ;
 export const ozToG = (oz: number): number => oz / G_TO_OZ;
+
+/**
+ * Validates if a latitude value is valid
+ * @param lat - The latitude value to validate
+ * @returns true if the latitude is valid, false otherwise
+ */
+export const isValidLatitude = (lat: number | null | undefined): lat is number => {
+  return typeof lat === 'number' && !isNaN(lat) && lat >= -90 && lat <= 90;
+};
+
+/**
+ * Validates if a longitude value is valid
+ * @param lng - The longitude value to validate
+ * @returns true if the longitude is valid, false otherwise
+ */
+export const isValidLongitude = (lng: number | null | undefined): lng is number => {
+  return typeof lng === 'number' && !isNaN(lng) && lng >= -180 && lng <= 180;
+};
+
+/**
+ * Validates if both latitude and longitude values are valid
+ * @param lat - The latitude value to validate
+ * @param lng - The longitude value to validate
+ * @returns true if both coordinates are valid, false otherwise
+ */
+export const isValidCoordinate = (lat: number | null | undefined, lng: number | null | undefined): boolean => {
+  return isValidLatitude(lat) && isValidLongitude(lng);
+};
+
+/**
+ * Filters out invalid coordinates from an array of lat/lng pairs
+ * @param coordinates - Array of [lat, lng] pairs
+ * @returns Array with only valid coordinates
+ */
+export const filterValidCoordinates = (coordinates: [number, number][]): [number, number][] => {
+  return coordinates.filter(([lat, lng]) => isValidCoordinate(lat, lng));
+};

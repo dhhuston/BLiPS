@@ -6,8 +6,7 @@ import {
   LiveWeatherEstimate,
   PredictionResult,
   LaunchParams,
-  WeatherData,
-  FlightPoint
+  WeatherData
 } from '../types';
 import { MAX_REASONABLE_DEVIATION_M, MAX_ALTITUDE_DEVIATION_M, EARTH_RADIUS_M } from '../constants';
 import { runPredictionSimulation } from './predictionService';
@@ -470,6 +469,7 @@ export async function createLivePredictionComparison(
  * @param predictedPath The predicted flight path
  * @returns { distance: number, bearing: number, altitudeDifference: number }
  */
+/*
 function calculateDeviationFromPredicted(
   position: APRSPosition,
   predictedPath: FlightPoint[]
@@ -492,6 +492,7 @@ function calculateDeviationFromPredicted(
   const altitudeDifference = (position.altitude ?? 0) - closest.altitude;
   return { distance, bearing, altitudeDifference };
 }
+*/
 
 /**
  * Calculate prediction accuracy metrics

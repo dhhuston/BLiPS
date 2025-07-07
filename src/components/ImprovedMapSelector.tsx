@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, RefObject } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, LayersControl } from 'react-leaflet';
 import L from 'leaflet';
 import GeocodingService from '../services/geocodingService';
+import { isValidCoordinate } from '../constants/index';
 
 // Fix for default icon path issue with webpack
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -64,18 +65,18 @@ const MapUpdater: React.FC<{ lat: number, lon: number, onMapChange: (lat: number
     [onMapChange],
   );
 
-  return (
+  return isValidCoordinate(lat, lon) ? (
     <Marker
       position={[lat, lon]}
       draggable={true}
       eventHandlers={eventHandlers}
       ref={markerRef}
     />
-  );
+  ) : null;
 };
 
 const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onMapChange, mapResizeRef }) => {
-  const mapContainerRef = useRef<any>(null);
+  const mapContainerRef = useRef<L.Map | null>(null);
   const mapDivRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -88,9 +89,7 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
   useEffect(() => {
     if (mapResizeRef) {
       mapResizeRef.current = () => {
-        if (mapContainerRef.current && mapContainerRef.current.leafletElement) {
-          mapContainerRef.current.leafletElement.invalidateSize();
-        } else if (mapContainerRef.current && mapContainerRef.current._leaflet_id) {
+        if (mapContainerRef.current && mapContainerRef.current?.invalidateSize) {
           mapContainerRef.current.invalidateSize();
         }
       };
@@ -101,7 +100,7 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
   useEffect(() => {
     if (!mapDivRef.current) return;
     const observer = new window.ResizeObserver(() => {
-      if (mapContainerRef.current && mapContainerRef.current._leaflet_id) {
+      if (mapContainerRef.current && mapContainerRef.current?.invalidateSize) {
         mapContainerRef.current.invalidateSize();
       }
     });
@@ -167,7 +166,7 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
             value={coordinateInput.lat}
             onChange={(e) => {
               const newLat = e.target.value;
-              setCoordinateInput(prev => ({ ...prev, lat: newLat }));
+              setCoordinateInput((prev: { lat: string; lon: string }) => ({ ...prev, lat: newLat }));
               const parsedLat = parseFloat(newLat);
               const parsedLon = parseFloat(coordinateInput.lon);
               if (!isNaN(parsedLat) && !isNaN(parsedLon) && parsedLat >= -90 && parsedLat <= 90 && parsedLon >= -180 && parsedLon <= 180) {
@@ -186,7 +185,7 @@ const ImprovedMapSelector: React.FC<ImprovedMapSelectorProps> = ({ lat, lon, onM
             value={coordinateInput.lon}
             onChange={(e) => {
               const newLon = e.target.value;
-              setCoordinateInput(prev => ({ ...prev, lon: newLon }));
+              setCoordinateInput((prev: { lat: string; lon: string }) => ({ ...prev, lon: newLon }));
               const parsedLat = parseFloat(coordinateInput.lat);
               const parsedLon = parseFloat(newLon);
               if (!isNaN(parsedLat) && !isNaN(parsedLon) && parsedLat >= -90 && parsedLat <= 90 && parsedLon >= -180 && parsedLon <= 180) {
